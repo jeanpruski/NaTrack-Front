@@ -778,7 +778,8 @@ export function Dashboard({
         </Reveal>
       )}
 
-      <Reveal as="section" className="px-4 xl:px-8 pb-4">
+      {!isBotUser && (
+        <Reveal as="section" className="px-4 xl:px-8 pb-4">
         <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
           <div className="flex flex-col gap-1 border-b px-4 py-3 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -837,9 +838,11 @@ export function Dashboard({
             })}
           </div>
         </div>
-      </Reveal>
+        </Reveal>
+      )}
 
-      <Reveal as="section" className="px-4 xl:px-8 pb-4">
+      {!isBotUser && (
+        <Reveal as="section" className="px-4 xl:px-8 pb-4">
         <div className={`grid gap-4 ${mode === "all" ? "md:grid-cols-2" : ""}`}>
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
             <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
@@ -976,7 +979,8 @@ export function Dashboard({
             </div>
           )}
         </div>
-      </Reveal>
+        </Reveal>
+      )}
 
       <Reveal as="section" className="px-4 xl:px-8 pb-8">
         <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">

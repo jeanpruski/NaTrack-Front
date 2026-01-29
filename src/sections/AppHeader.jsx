@@ -263,7 +263,7 @@ export function AppHeader({
               <span className="inline-flex items-center gap-1.5 relative z-10">
                 {!isAuth ? (
                   <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
-                    <Lock size={16} aria-hidden="true" />
+                    <LockOpen size={16} aria-hidden="true" />
                   </span>
                 ) : editorIcon === "user" ? (
                   <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">

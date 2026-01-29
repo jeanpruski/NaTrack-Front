@@ -69,6 +69,7 @@ export default function App() {
   const [hideLockedCards, setHideLockedCards] = useState(false);
   const [toast, setToast] = useState("");
   const [isBusy, setIsBusy] = useState(false);
+  const [authTransition, setAuthTransition] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
@@ -78,6 +79,9 @@ export default function App() {
   const didInitScrollRef = useRef(false);
   const prevAuthRef = useRef(isAuth);
   const prevUserIdRef = useRef(user?.id || null);
+  const authTransitionRef = useRef(isAuth);
+  const authTransitionTimerRef = useRef(null);
+  const loginRedirectRef = useRef(isAuth);
   const swipeRef = useRef({ x: 0, y: 0, t: 0, moved: false });
   const didInitHistoryRef = useRef(false);
   const scrollTopSoonRef = useRef(null);
@@ -102,6 +106,7 @@ export default function App() {
   const [sessions, setSessions] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
+  const [activeSeasonInfo, setActiveSeasonInfo] = useState(null);
   const [mode, setMode] = useState("run");   // all | swim | run
   const [range, setRange] = useState(getInitialRange); // all | month | 6m | 3m | 2026 | 2025
   const [routeState, setRouteState] = useState(readRouteState);
@@ -158,6 +163,25 @@ export default function App() {
       } catch {
         if (!alive) return;
         setUsers([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiGet("/season/active");
+        if (!alive) return;
+        if (data && data.season_number !== null && data.season_number !== undefined) {
+          setActiveSeasonInfo(data);
+        } else {
+          setActiveSeasonInfo(null);
+        }
+      } catch {
+        if (!alive) return;
+        setActiveSeasonInfo(null);
       }
     })();
     return () => { alive = false; };
@@ -345,6 +369,36 @@ export default function App() {
     prevAuthRef.current = isAuth;
     prevUserIdRef.current = user.id;
   }, [isAuth, isAdmin, user, selectedUser]);
+
+  useEffect(() => {
+    if (authTransitionRef.current === isAuth) return;
+    authTransitionRef.current = isAuth;
+    setAuthTransition(true);
+    if (authTransitionTimerRef.current) clearTimeout(authTransitionTimerRef.current);
+    authTransitionTimerRef.current = setTimeout(() => {
+      setAuthTransition(false);
+    }, 1000);
+  }, [isAuth]);
+
+  useEffect(() => {
+    return () => {
+      if (authTransitionTimerRef.current) clearTimeout(authTransitionTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const wasAuth = loginRedirectRef.current;
+    if (!wasAuth && isAuth) {
+      setShowCardsPage(false);
+      setSelectedUser(null);
+      setUserCardOpen(false);
+      if ((window.location.pathname || "/") !== "/") {
+        window.history.replaceState({}, "", "/");
+        setRouteState({ type: "root", slug: null });
+      }
+    }
+    loginRedirectRef.current = isAuth;
+  }, [isAuth]);
 
   useEffect(() => {
     if (showEditModal && isAuth && !selectedUser) {
@@ -965,6 +1019,10 @@ export default function App() {
   const headerTitle = selectedUser ? selectedUser.name : null;
   const canEditSelected = !!selectedUser && (isAdmin || user?.id === selectedUser.id);
   const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
+  const seasonLabel =
+    activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
+      ? `Saison ${activeSeasonInfo.season_number}`
+      : "Saison X";
   const cardsUnlockedCounts = useMemo(() => {
     const counts = { defi: 0, rare: 0, evenement: 0 };
     const totals = { defi: 0, rare: 0, evenement: 0 };
@@ -1073,6 +1131,11 @@ export default function App() {
         />
       </div>
 
+      {authTransition && (
+        <div className="fixed inset-0 z-50">
+          <LoadingScreen loadingPhase="loading" forceLoading />
+        </div>
+      )}
       <div className="relative z-10">
         <AppHeader
           range={range}
@@ -1121,6 +1184,13 @@ export default function App() {
           onRangeChange={setRange}
           onBack={showCardsPage || !isGlobalView ? handleBack : null}
         />
+        {seasonLabel && (
+          <div className="fixed bottom-8 left-8 z-40 text-xs text-slate-500 dark:text-slate-400">
+            <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
+              {seasonLabel} · Alpha 0.0.1
+            </span>
+          </div>
+        )}
 
         <main
           ref={mainRef}
@@ -1276,12 +1346,6 @@ export default function App() {
         className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 h-[6px] bg-gradient-to-r from-sky-400 via-lime-300 to-emerald-300"
         aria-hidden="true"
       />
-      <div className="fixed bottom-8 left-8 z-40 text-xs text-slate-500 dark:text-slate-400">
-        <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-          Alpha 0.0.1
-        </span>
-      </div>
-
       <EditModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}

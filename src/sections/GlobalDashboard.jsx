@@ -96,8 +96,9 @@ export function GlobalDashboard({
   }, []);
   const subtitle = mode === "all" ? rangeLabel : `${rangeLabel} · ${modeLabel || ""}`.trim();
   const podiumUsers = useMemo(() => {
-    return showBotsInPodium ? users : users.filter((u) => !u?.is_bot);
-  }, [users, showBotsInPodium]);
+    const base = showBotsInPodium ? users : users.filter((u) => !u?.is_bot);
+    return base.filter((u) => (totalsByUser?.[u.id] || 0) > 0);
+  }, [users, showBotsInPodium, totalsByUser]);
 
   const totals = useMemo(() => {
     return podiumUsers
@@ -316,13 +317,21 @@ export function GlobalDashboard({
         )}
         <Reveal as="section">
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
-            <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
+            <div className="flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 <span className="inline-flex items-center gap-2">
                   <Newspaper size={18} />
                   Événements spéciaux
                 </span>
               </h2>
+              <div className="flex w-full justify-end md:w-auto md:justify-start">
+                <button
+                  type="button"
+                  className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                >
+                  Archives
+                </button>
+              </div>
             </div>
             <div className="p-4">
               <div className="grid gap-3 md:grid-cols-2">
@@ -403,20 +412,22 @@ export function GlobalDashboard({
         </Reveal>
         <Reveal as="section">
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
-            <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
+            <div className="flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 <span className="inline-flex items-center gap-2">
                   <Trophy size={18} />
                   Podium - {subtitle}
                 </span>
               </h2>
-              <button
-                type="button"
-                onClick={() => setShowBotsInPodium((prev) => !prev)}
-                className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
-              >
-                {showBotsInPodium ? "Masquer les bots" : "Afficher les bots"}
-              </button>
+              <div className="flex w-full justify-end md:w-auto md:justify-start">
+                <button
+                  type="button"
+                  onClick={() => setShowBotsInPodium((prev) => !prev)}
+                  className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                >
+                  {showBotsInPodium ? "Masquer les bots" : "Afficher les bots"}
+                </button>
+              </div>
             </div>
             <div className="p-4">
               {!users.length ? (
@@ -441,14 +452,20 @@ export function GlobalDashboard({
                           : index === 1
                             ? "ring-slate-400/70 dark:ring-slate-300/50"
                             : "ring-orange-300/70 dark:ring-orange-300/45";
+                      const baseBg = u.isBot
+                        ? "bg-rose-50/80 dark:bg-rose-900/30"
+                        : "bg-slate-50/80 dark:bg-slate-800/50";
+                      const hoverBg = u.isBot
+                        ? "hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                        : "hover:bg-slate-100 dark:hover:bg-slate-800";
                       return (
                         <button
                           key={u.id}
                           onClick={() => onSelectUser(u)}
-                          className={`text-left rounded-xl p-3 ring-1 hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                          className={`text-left rounded-xl p-3 ring-1 ${hoverBg} ${
                             isPodium
-                              ? `${podiumClass} bg-slate-50/80 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100`
-                              : "bg-slate-50/80 ring-slate-200 dark:bg-slate-800/50 dark:ring-slate-700"
+                              ? `${podiumClass} ${baseBg} text-slate-900 dark:text-slate-100`
+                              : `${baseBg} ring-slate-200 dark:ring-slate-700`
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
