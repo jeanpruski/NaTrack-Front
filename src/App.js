@@ -958,10 +958,6 @@ export default function App() {
     showToast("Export terminé");
   };
 
-  if (loadingPhase !== "done" || FORCE_LOADING) {
-    return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;
-  }
-
   const showMonthCardsOnlyWhenAllRange = range === "all";
   const showMonthlyChart = range !== "month";
   const hasSessions = shownSessions.length > 0;
@@ -969,6 +965,20 @@ export default function App() {
   const headerTitle = selectedUser ? selectedUser.name : null;
   const canEditSelected = !!selectedUser && (isAdmin || user?.id === selectedUser.id);
   const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
+  const cardsUnlockedCounts = useMemo(() => {
+    const counts = { defi: 0, rare: 0, evenement: 0 };
+    (cardResults || []).forEach((r) => {
+      const type = String(r?.type || "").toLowerCase();
+      if (type === "defi" || type === "rare" || type === "evenement") {
+        counts[type] += 1;
+      }
+    });
+    return counts;
+  }, [cardResults]);
+
+  if (loadingPhase !== "done" || FORCE_LOADING) {
+    return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;
+  }
 
   const handleSelectUser = (u) => {
     setSelectedUser(u);
@@ -1083,6 +1093,7 @@ export default function App() {
                 }
               : null
           }
+          cardsUnlockedCounts={showCardsPage ? cardsUnlockedCounts : null}
           title={headerTitle}
           editorTargetName={headerTitle}
           loggedUserName={user?.name}

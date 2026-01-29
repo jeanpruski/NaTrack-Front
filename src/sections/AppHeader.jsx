@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { ArrowLeft, Eye, EyeOff, Flag, Layers, Lock, LockOpen } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Flag, Layers, Lock, LockOpen, Newspaper, Sparkles, Swords } from "lucide-react";
 import { LayoutGroup, motion } from "framer-motion";
 import { InfoPopover } from "../components/InfoPopover";
 import { HEADER_SURFACE_CLASS, HEADER_TOP_PADDING_STYLE } from "../constants/layout";
@@ -106,6 +106,7 @@ export function AppHeader({
   cardsFilter,
   cardsExtraAction,
   cardsHideLockedAction,
+  cardsUnlockedCounts,
 }) {
   const didMountRef = useRef(false);
   const prevOnBackRef = useRef(false);
@@ -262,6 +263,22 @@ export function AppHeader({
         </div>
       </LayoutGroup>
 
+      {!showFilters && cardsUnlockedCounts && (
+        <div className="hidden xl:flex flex-1 items-center justify-center">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+            aria-label="Nombre de cartes débloquées"
+          >
+            {cardsUnlockedCounts.defi || 0} <Swords size={14} aria-hidden="true" />
+            <span className="opacity-60">·</span>
+            {cardsUnlockedCounts.rare || 0} <Sparkles size={14} aria-hidden="true" />
+            <span className="opacity-60">·</span>
+            {cardsUnlockedCounts.evenement || 0} <Newspaper size={14} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {showFilters && (
         <div className="flex items-center justify-between gap-2 xl:hidden">
           <RangeSelect value={range} onChange={onRangeChange} />
@@ -276,19 +293,36 @@ export function AppHeader({
         </div>
       )}
 
-      {!showFilters && cardsFilter && (
-        <div className="flex items-center justify-end gap-2 xl:hidden">
-          {cardsHideLockedAction && (
+      {!showFilters && (cardsFilter || cardsUnlockedCounts) && (
+        <div className="flex items-center justify-between gap-2 xl:hidden w-full">
+          {cardsUnlockedCounts ? (
             <button
               type="button"
-              onClick={cardsHideLockedAction.onClick}
-              aria-label={cardsHideLockedAction.active ? "Masquer les cartes verrouillées" : "Afficher les cartes verrouillées"}
-              className="inline-flex items-center justify-center rounded-xl bg-slate-200 p-2 text-slate-900 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+              aria-label="Nombre de cartes débloquées"
             >
-              {cardsHideLockedAction.active ? <EyeOff size={16} /> : <Eye size={16} />}
+              {cardsUnlockedCounts.defi || 0} <Swords size={12} aria-hidden="true" />
+              <span className="opacity-60">·</span>
+              {cardsUnlockedCounts.rare || 0} <Sparkles size={12} aria-hidden="true" />
+              <span className="opacity-60">·</span>
+              {cardsUnlockedCounts.evenement || 0} <Newspaper size={12} aria-hidden="true" />
             </button>
+          ) : (
+            <span />
           )}
-          <CardsFilterSwitch value={cardsFilter.value} onChange={cardsFilter.onChange} />
+          <div className="flex items-center gap-2">
+            {cardsHideLockedAction && (
+              <button
+                type="button"
+                onClick={cardsHideLockedAction.onClick}
+                aria-label={cardsHideLockedAction.active ? "Masquer les cartes verrouillées" : "Afficher les cartes verrouillées"}
+                className="inline-flex items-center justify-center rounded-xl bg-slate-200 p-2 text-slate-900 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+              >
+                {cardsHideLockedAction.active ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            )}
+            {cardsFilter && <CardsFilterSwitch value={cardsFilter.value} onChange={cardsFilter.onChange} />}
+          </div>
         </div>
       )}
 

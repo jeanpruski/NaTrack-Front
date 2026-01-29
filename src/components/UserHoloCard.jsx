@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
-import { Bot, Diamond, User } from "lucide-react";
+import { Bot, Diamond, Newspaper, Sparkles, Swords, User } from "lucide-react";
 
 export function UserHoloCard({
   user,
@@ -368,7 +368,15 @@ export function UserHoloCard({
               {!showBackOnlySafe && (
                 <>
                   {isBot ? (
-                    <Diamond size={10} className="text-emerald-200" aria-hidden="true" />
+                    botCardType === "defi" ? (
+                      <Swords size={10} className="text-emerald-200" aria-hidden="true" />
+                    ) : botCardType === "rare" ? (
+                      <Sparkles size={10} className="text-emerald-200" aria-hidden="true" />
+                    ) : botCardType === "evenement" ? (
+                      <Newspaper size={10} className="text-emerald-200" aria-hidden="true" />
+                    ) : (
+                      <Diamond size={10} className="text-emerald-200" aria-hidden="true" />
+                    )
                   ) : (
                     <span aria-hidden="true">★</span>
                   )}

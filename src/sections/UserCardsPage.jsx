@@ -49,6 +49,18 @@ export function UserCardsPage({
     return { usersOnlyByDate: realUsers, botsOnlyByDate: bots, botsOnlyByAvg: botsByAvg };
   }, [sorted]);
 
+  const botsByAvgDesc = useMemo(() => {
+    const list = [...botsOnlyByAvg];
+    return list.sort((a, b) => {
+      const aVal = Number.isFinite(Number(a?.avg_distance_m)) ? Number(a.avg_distance_m) : null;
+      const bVal = Number.isFinite(Number(b?.avg_distance_m)) ? Number(b.avg_distance_m) : null;
+      if (aVal === null && bVal === null) return 0;
+      if (aVal === null) return 1;
+      if (bVal === null) return -1;
+      return bVal - aVal;
+    });
+  }, [botsOnlyByAvg]);
+
   const { userRankById, botRankById } = useMemo(() => {
     const userRanks = new Map();
     const botRanks = new Map();
@@ -94,20 +106,10 @@ export function UserCardsPage({
       return [me, ...usersSortedByAvg.filter((u) => u.id !== currentUserId)];
     }
     if (filter === "bots") {
-      const unlocked = botsOnlyByAvg.filter(
-        (u) =>
-          unlockedBotIds.has(String(u.id)) ||
-          unlockedBotIds.has(`name:${String(u.name || "").toLowerCase()}`)
-      );
-      const locked = botsOnlyByAvg.filter(
-        (u) =>
-          !unlockedBotIds.has(String(u.id)) &&
-          !unlockedBotIds.has(`name:${String(u.name || "").toLowerCase()}`)
-      );
-      return [...unlocked, ...locked];
+      return botsByAvgDesc;
     }
     return sorted;
-  }, [filter, usersSortedByAvg, botsOnlyByAvg, sorted, currentUserId, unlockedBotIds]);
+  }, [filter, usersSortedByAvg, botsByAvgDesc, sorted, currentUserId]);
 
   const isLockedBot = useCallback(
     (u) =>
