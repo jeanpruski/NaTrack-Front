@@ -202,7 +202,7 @@ export function AppHeader({
               aria-label="Informations NaTrack"
             >
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-slate-900 dark:text-slate-100 flex items-center gap-1 whitespace-nowrap">
-                <img src="/big-logo.png" alt="NaTrack" className="h-9" />
+                <img src="/big-logo.png" alt="NaTrack" className="h-9 translate-y-[4px]" />
                 {/* {title && <span className="text-base sm:text-lg font-semibold">{title}</span>} */}
               </h1>
             </button>

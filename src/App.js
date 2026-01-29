@@ -1257,13 +1257,14 @@ export default function App() {
   return (
     <div
       className="
-        min-h-[100%]
+        min-h-[100dvh]
         relative
         bg-gradient-to-b
         from-slate-100 via-slate-50 to-slate-50
         dark:from-[#0b1020] dark:via-[#0a1028] dark:to-[#0b1228]
         text-[13.5px] sm:text-[14px]
       "
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center">
         <img
@@ -1329,7 +1330,7 @@ export default function App() {
           onBack={showCardsPage || !isGlobalView ? handleBack : null}
         />
         {seasonLabel && (
-          <div className="fixed bottom-8 left-8 z-40 text-xs text-slate-500 dark:text-slate-400">
+          <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
             <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
               {seasonLabel} · Alpha 0.0.1
             </span>
@@ -1362,12 +1363,11 @@ export default function App() {
               items={
                 victoryInfo
                   ? [
-                      <div key="victory" className="grid gap-5">
-                        <div className="flex items-center gap-2 text-[26px] font-semibold text-slate-900 dark:text-slate-100">
-                          <Swords size={22} className="text-slate-900 dark:text-slate-100" />
+                      <div key="victory" className="grid gap-5 -mt-3">
+                        <div className="text-center text-[26px] font-semibold text-slate-900 dark:text-slate-100">
                           Victoire !
                         </div>
-                        <div className="text-lg text-slate-700 dark:text-slate-200">
+                        <div className="-mt-6 text-center text-lg text-slate-700 dark:text-slate-200">
                           Tu as battu <strong>{victoryInfo.botName}</strong>
                           {" "}•{" "}
                           <span className="font-semibold text-slate-900 dark:text-slate-100">
@@ -1387,6 +1387,21 @@ export default function App() {
                               minSpinnerMs={500}
                             />
                           </div>
+                        </div>
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVictoryInfo(null);
+                              setSelectedUser(null);
+                              setUserCardOpen(false);
+                              setShowCardsPage(true);
+                              setRouteState({ type: "cards", slug: null });
+                            }}
+                            className="rounded-full border border-emerald-300/80 bg-emerald-100/80 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/50 dark:bg-emerald-400/10 dark:text-emerald-200"
+                          >
+                            Voir dans les cartes
+                          </button>
                         </div>
                       </div>,
                     ]
