@@ -94,7 +94,11 @@ export function GlobalDashboard({
       img.onerror = null;
     };
   }, []);
-  const subtitle = mode === "all" ? rangeLabel : `${rangeLabel} · ${modeLabel || ""}`.trim();
+  const subtitle = (() => {
+    if (mode === "all") return rangeLabel;
+    const parts = [rangeLabel, modeLabel].filter(Boolean);
+    return parts.join(" · ");
+  })();
   const podiumUsers = useMemo(() => {
     const base = showBotsInPodium ? users : users.filter((u) => !u?.is_bot);
     return base.filter((u) => (totalsByUser?.[u.id] || 0) > 0);
@@ -414,9 +418,31 @@ export function GlobalDashboard({
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
             <div className="flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                <span className="inline-flex items-center gap-2">
-                  <Trophy size={18} />
-                  Podium - {subtitle}
+                <span className="inline-flex items-start gap-2">
+                  <Trophy size={18} className="mt-[2px] shrink-0" />
+                  <span className="whitespace-normal">
+                    {subtitle ? (
+                      (() => {
+                        const openIdx = subtitle.indexOf(" (");
+                        const closeIdx = subtitle.lastIndexOf(")");
+                        if (openIdx !== -1 && closeIdx > openIdx) {
+                          const before = subtitle.slice(0, openIdx);
+                          const dates = subtitle.slice(openIdx, closeIdx + 1);
+                          const after = subtitle.slice(closeIdx + 1).trim();
+                          return (
+                            <>
+                              <span>{`Podium · ${before}`}</span>
+                              <span className="font-normal not-italic">{dates}</span>
+                              {after ? <span>{` · ${after.replace(/^·\s*/, "")}`}</span> : null}
+                            </>
+                          );
+                        }
+                        return `Podium · ${subtitle}`;
+                      })()
+                    ) : (
+                      "Podium"
+                    )}
+                  </span>
                 </span>
               </h2>
               <div className="flex w-full justify-end md:w-auto md:justify-start">

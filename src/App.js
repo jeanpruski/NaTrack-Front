@@ -82,6 +82,7 @@ export default function App() {
   const authTransitionRef = useRef(isAuth);
   const authTransitionTimerRef = useRef(null);
   const loginRedirectRef = useRef(isAuth);
+  const rangeTouchedRef = useRef(false);
   const swipeRef = useRef({ x: 0, y: 0, t: 0, moved: false });
   const didInitHistoryRef = useRef(false);
   const scrollTopSoonRef = useRef(null);
@@ -107,6 +108,7 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [activeSeasonInfo, setActiveSeasonInfo] = useState(null);
+  const [seasons, setSeasons] = useState([]);
   const [mode, setMode] = useState("run");   // all | swim | run
   const [range, setRange] = useState(getInitialRange); // all | month | 6m | 3m | 2026 | 2025
   const [routeState, setRouteState] = useState(readRouteState);
@@ -167,6 +169,39 @@ export default function App() {
     })();
     return () => { alive = false; };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiGet("/seasons");
+        if (!alive) return;
+        setSeasons(Array.isArray(data) ? data : []);
+      } catch {
+        if (!alive) return;
+        setSeasons([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    const hasSeason =
+      activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined;
+    if (hasSeason) {
+      if (!rangeTouchedRef.current) {
+        setRange(`season:${activeSeasonInfo.season_number}`);
+      }
+      return;
+    }
+    if (String(range).startsWith("season:")) {
+      setRange("month");
+      return;
+    }
+    if (!rangeTouchedRef.current) {
+      setRange("month");
+    }
+  }, [activeSeasonInfo, range]);
 
   useEffect(() => {
     let alive = true;
@@ -339,6 +374,83 @@ export default function App() {
   const monthLabel = capFirst(dayjs().format("MMMM YYYY"));
 
   const modeLabel = mode === "swim" ? "Natation" : mode === "run" ? "Running" : null;
+  const seasonLabel =
+    activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
+      ? `Saison ${activeSeasonInfo.season_number}`
+      : "Saison X";
+  const seasonsSortedAsc = useMemo(() => {
+    return [...(seasons || [])].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+  }, [seasons]);
+  const seasonsSortedDesc = useMemo(() => {
+    return [...seasonsSortedAsc].reverse();
+  }, [seasonsSortedAsc]);
+  const seasonsVisible = useMemo(() => {
+    const today = dayjs().startOf("day").valueOf();
+    return seasonsSortedDesc.filter((s) => {
+      if (!s?.start_date) return false;
+      return dayjs(s.start_date).startOf("day").valueOf() <= today;
+    });
+  }, [seasonsSortedDesc]);
+  const seasonRanges = useMemo(() => {
+    const map = new Map();
+    seasonsSortedAsc.forEach((s, idx) => {
+      const next = seasonsSortedAsc[idx + 1];
+      map.set(String(s.season_number), {
+        season_number: s.season_number,
+        start_date: s.start_date || null,
+        end_date: next?.start_date || null,
+      });
+    });
+    return map;
+  }, [seasonsSortedAsc]);
+  const selectedSeasonKey =
+    String(range || "").startsWith("season:") ? String(range).split(":")[1] : null;
+  const selectedSeasonRange = selectedSeasonKey ? seasonRanges.get(String(selectedSeasonKey)) : null;
+  const seasonStartTs = selectedSeasonRange?.start_date
+    ? dayjs(selectedSeasonRange.start_date).startOf("day").valueOf()
+    : null;
+  const seasonEndTs = selectedSeasonRange?.end_date
+    ? dayjs(selectedSeasonRange.end_date).startOf("day").valueOf()
+    : null;
+  const seasonCalendarStartDate = selectedSeasonRange?.start_date || null;
+  const seasonCalendarEndDate = (() => {
+    if (!selectedSeasonRange?.start_date) return null;
+    if (!selectedSeasonRange?.end_date) {
+      return dayjs().endOf("day").format("YYYY-MM-DD");
+    }
+    return dayjs(selectedSeasonRange.end_date).subtract(1, "day").format("YYYY-MM-DD");
+  })();
+  const rangeOptions = useMemo(() => {
+    const seasonOpts = seasonsVisible.map((s) => ({
+      key: `season:${s.season_number}`,
+      label: `Saison ${s.season_number}`,
+    }));
+    const base = [
+      { key: "all", label: "Historique complet" },
+      { key: "month", label: "Mois en cours" },
+      { key: "3m", label: "3 Derniers mois" },
+      { key: "6m", label: "6 Derniers mois" },
+      { key: "2026", label: "Année 2026" },
+      { key: "2025", label: "Année 2025" },
+    ];
+    return seasonOpts.length ? [...seasonOpts, ...base] : base;
+  }, [seasonsVisible]);
+  const seasonRangeLabel = (() => {
+    if (
+      selectedSeasonRange?.season_number === null ||
+      selectedSeasonRange?.season_number === undefined ||
+      !selectedSeasonRange?.start_date
+    ) {
+      return null;
+    }
+    const start = dayjs(selectedSeasonRange.start_date).locale("fr").format("D MMMM YYYY");
+    if (selectedSeasonRange.end_date) {
+      const end = dayjs(selectedSeasonRange.end_date).subtract(1, "day").locale("fr").format("D MMMM YYYY");
+      return `Saison ${selectedSeasonRange.season_number} (${start} au ${end})`;
+    }
+    return `Saison ${selectedSeasonRange.season_number} (${start} au ...)`;
+  })();
+  const isSeasonRange = String(range).startsWith("season:");
   const rangeLabel =
     range === "all"
       ? "Tout l'historique"
@@ -348,9 +460,11 @@ export default function App() {
           ? "Les 3 derniers mois"
           : range === "6m"
             ? "Les 6 derniers mois"
-            : /^\d{4}$/.test(range)
-              ? `L'annee ${range}`
-              : "Cette periode";
+            : isSeasonRange
+              ? seasonRangeLabel || seasonLabel
+              : /^\d{4}$/.test(range)
+                ? `L'annee ${range}`
+                : "Cette periode";
   const isAdmin = String(user?.role || "").toLowerCase() === "admin";
 
   useEffect(() => {
@@ -431,9 +545,17 @@ export default function App() {
     if (range === "3m") {
       return sessions.filter((s) => dayjs(s.date).isAfter(now.subtract(3, "month")));
     }
+    if (String(range).startsWith("season:") && seasonStartTs !== null) {
+      return sessions.filter((s) => {
+        const ts = dayjs(s.date).startOf("day").valueOf();
+        if (ts < seasonStartTs) return false;
+        if (seasonEndTs !== null && ts >= seasonEndTs) return false;
+        return true;
+      });
+    }
 
     return sessions.filter((s) => dayjs(s.date).format("YYYY") === range);
-  }, [sessions, range, monthKey]);
+  }, [sessions, range, monthKey, seasonStartTs, seasonEndTs]);
 
   const globalShownSessions = useMemo(() => {
     if (mode === "all") return globalPeriodSessions;
@@ -617,9 +739,17 @@ export default function App() {
     if (range === "3m") {
       return userSessions.filter((s) => dayjs(s.date).isAfter(now.subtract(3, "month")));
     }
+    if (String(range).startsWith("season:") && seasonStartTs !== null) {
+      return userSessions.filter((s) => {
+        const ts = dayjs(s.date).startOf("day").valueOf();
+        if (ts < seasonStartTs) return false;
+        if (seasonEndTs !== null && ts >= seasonEndTs) return false;
+        return true;
+      });
+    }
 
     return userSessions.filter((s) => dayjs(s.date).format("YYYY") === range);
-  }, [userSessions, range]);
+  }, [userSessions, range, seasonStartTs, seasonEndTs]);
 
   /* ===== Filtre sport ===== */
   const shownSessions = useMemo(() => {
@@ -1013,16 +1143,12 @@ export default function App() {
   };
 
   const showMonthCardsOnlyWhenAllRange = range === "all";
-  const showMonthlyChart = range !== "month";
+  const showMonthlyChart = range !== "month" && !isSeasonRange;
   const hasSessions = shownSessions.length > 0;
   const isGlobalView = !selectedUser;
   const headerTitle = selectedUser ? selectedUser.name : null;
   const canEditSelected = !!selectedUser && (isAdmin || user?.id === selectedUser.id);
   const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
-  const seasonLabel =
-    activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
-      ? `Saison ${activeSeasonInfo.season_number}`
-      : "Saison X";
   const cardsUnlockedCounts = useMemo(() => {
     const counts = { defi: 0, rare: 0, evenement: 0 };
     const totals = { defi: 0, rare: 0, evenement: 0 };
@@ -1046,6 +1172,11 @@ export default function App() {
       evenementTotal: totals.evenement,
     };
   }, [cardResults, users]);
+
+  const handleRangeChange = (nextRange) => {
+    rangeTouchedRef.current = true;
+    setRange(nextRange);
+  };
 
   if (loadingPhase !== "done" || FORCE_LOADING) {
     return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;
@@ -1144,6 +1275,7 @@ export default function App() {
           showEditor={!showCardsPage && showEditorButton}
           showFilters={!showCardsPage}
           editorIcon={isGlobalView ? "user" : "pencil"}
+          rangeOptions={rangeOptions}
           cardsFilter={
             showCardsPage
               ? {
@@ -1181,7 +1313,7 @@ export default function App() {
             setShowEditModal(true);
           }}
           onModeChange={setMode}
-          onRangeChange={setRange}
+          onRangeChange={handleRangeChange}
           onBack={showCardsPage || !isGlobalView ? handleBack : null}
         />
         {seasonLabel && (
@@ -1308,6 +1440,9 @@ export default function App() {
                   rangeLabel={rangeLabel}
                   userName={headerTitle}
                   userInfo={selectedUserInfo}
+                  activeSeasonNumber={activeSeasonInfo?.season_number ?? null}
+                  seasonStartDate={seasonCalendarStartDate}
+                  seasonEndDate={seasonCalendarEndDate}
                   userRankInfo={userRankInfo}
                   userRunningAvgById={userRunningAvgById}
                   userCardOpen={userCardOpen}

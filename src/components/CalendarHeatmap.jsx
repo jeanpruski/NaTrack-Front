@@ -30,8 +30,14 @@ const WEEKDAY_LABELS = [
 
 const toKey = (d) => dayjs(d).format("YYYY-MM-DD");
 
-const getRangeBounds = (range, sessions) => {
+const getRangeBounds = (range, sessions, seasonStartDate, seasonEndDate) => {
   const now = dayjs();
+
+  if (String(range || "").startsWith("season:") && seasonStartDate) {
+    const start = dayjs(seasonStartDate);
+    const end = seasonEndDate ? dayjs(seasonEndDate).endOf("day") : now.endOf("day");
+    return { start: start.startOf("day"), end };
+  }
 
   if (range === "month") {
     return { start: now.startOf("month"), end: now.endOf("day") };
@@ -62,9 +68,9 @@ const getRangeBounds = (range, sessions) => {
   return { start: now.startOf("month"), end: now.endOf("day") };
 };
 
-export function CalendarHeatmap({ sessions, range }) {
+export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seasonEndDate = null }) {
   const { weeks, activeDays, totalDays } = useMemo(() => {
-    const { start, end } = getRangeBounds(range, sessions);
+    const { start, end } = getRangeBounds(range, sessions, seasonStartDate, seasonEndDate);
     const counts = new Map();
 
     sessions.forEach((s) => {
@@ -129,7 +135,7 @@ export function CalendarHeatmap({ sessions, range }) {
     );
 
     return { weeks: weeksWithLevels, activeDays: active, totalDays: total };
-  }, [sessions, range]);
+  }, [sessions, range, seasonStartDate, seasonEndDate]);
 
   if (!weeks.length) {
     return (

@@ -68,6 +68,9 @@ export function Dashboard({
   firstSessionLabel,
   nf,
   nfDecimal,
+  activeSeasonNumber = null,
+  seasonStartDate = null,
+  seasonEndDate = null,
   userName,
   userInfo,
   userRankInfo,
@@ -85,6 +88,13 @@ export function Dashboard({
   const cardUser = userInfo || (userName ? { name: userName } : {});
   const userRunningAvgKm = userInfo ? userRunningAvgById?.get(userInfo.id) : null;
   const isBotUser = Boolean(userInfo?.is_bot);
+  const isSeasonRange = String(range || "").startsWith("season:");
+  const selectedSeasonKey = isSeasonRange ? String(range || "").split(":")[1] : null;
+  const isActiveSeasonRange =
+    isSeasonRange &&
+    selectedSeasonKey !== null &&
+    activeSeasonNumber !== null &&
+    String(activeSeasonNumber) === String(selectedSeasonKey);
   const botBorderColor = userInfo?.bot_border_color || (isBotUser ? "#992929" : "");
   const showChallenge =
     !!activeChallenge &&
@@ -535,7 +545,12 @@ export function Dashboard({
 
             {mode === "run" &&
               shoesLifeByRange &&
-              (range === "all" || range === "month" || range === "6m" || range === "3m" || range === "2026") && (
+              (range === "all" ||
+                range === "month" ||
+                range === "6m" ||
+                range === "3m" ||
+                range === "2026" ||
+                isActiveSeasonRange) && (
                 <KpiChip
                   title="Chaussures"
                   subtitle={
@@ -746,6 +761,11 @@ export function Dashboard({
                 <span className="inline-flex items-center gap-2">
                   <TrendingUpDown size={18} />
                   Séances
+                  {isSeasonRange && (
+                    <span className="block text-xs font-normal text-slate-500 dark:text-slate-400 sm:inline sm:ml-2">
+                      {rangeLabel}
+                    </span>
+                  )}
                 </span>
               </h2>
             </div>
@@ -754,7 +774,7 @@ export function Dashboard({
             </div>
           </div>
 
-          {showMonthlyChart && (
+          {showMonthlyChart && !isSeasonRange && (
             <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
               <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -778,7 +798,7 @@ export function Dashboard({
         </Reveal>
       )}
 
-      {!isBotUser && (
+      {!isBotUser && !isSeasonRange && (
         <Reveal as="section" className="px-4 xl:px-8 pb-4">
         <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
           <div className="flex flex-col gap-1 border-b px-4 py-3 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
@@ -841,7 +861,7 @@ export function Dashboard({
         </Reveal>
       )}
 
-      {!isBotUser && (
+      {!isBotUser && !isSeasonRange && (
         <Reveal as="section" className="px-4 xl:px-8 pb-4">
         <div className={`grid gap-4 ${mode === "all" ? "md:grid-cols-2" : ""}`}>
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
@@ -1001,7 +1021,12 @@ export function Dashboard({
             )}
           </div>
           <div className="p-4">
-            <CalendarHeatmap sessions={shownSessions} range={range} />
+            <CalendarHeatmap
+              sessions={shownSessions}
+              range={range}
+              seasonStartDate={seasonStartDate}
+              seasonEndDate={seasonEndDate}
+            />
           </div>
         </div>
       </Reveal>

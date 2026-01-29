@@ -78,7 +78,17 @@ function CardsFilterSwitch({ value, onChange }) {
   );
 }
 
-function RangeSelect({ value, onChange }) {
+function RangeSelect({ value, onChange, options }) {
+  const items = options?.length
+    ? options
+    : [
+        { key: "all", label: "Historique complet" },
+        { key: "month", label: "Mois en cours" },
+        { key: "3m", label: "3 Derniers mois" },
+        { key: "6m", label: "6 Derniers mois" },
+        { key: "2026", label: "Année 2026" },
+        { key: "2025", label: "Année 2025" },
+      ];
   return (
     <select
       value={value}
@@ -92,12 +102,11 @@ function RangeSelect({ value, onChange }) {
         outline-none focus:ring-2 focus:ring-indigo-500
       "
     >
-      <option value="all">Historique complet</option>
-      <option value="month">Mois en cours</option>
-      <option value="3m">3 Derniers mois</option>
-      <option value="6m">6 Derniers mois</option>
-      <option value="2026">Année 2026</option>
-      <option value="2025">Année 2025</option>
+      {items.map((it) => (
+        <option key={it.key} value={it.key}>
+          {it.label}
+        </option>
+      ))}
     </select>
   );
 }
@@ -120,6 +129,7 @@ export function AppHeader({
   cardsExtraAction,
   cardsHideLockedAction,
   cardsUnlockedCounts,
+  rangeOptions,
 }) {
   const didMountRef = useRef(false);
   const prevOnBackRef = useRef(false);
@@ -302,14 +312,14 @@ export function AppHeader({
 
       {showFilters && (
         <div className="flex items-center justify-between gap-2 xl:hidden">
-          <RangeSelect value={range} onChange={onRangeChange} />
+          <RangeSelect value={range} onChange={onRangeChange} options={rangeOptions} />
           <TypeSwitch value={mode} onChange={onModeChange} />
         </div>
       )}
 
       {showFilters && (
         <div className="hidden xl:flex items-center justify-end gap-3">
-          <RangeSelect value={range} onChange={onRangeChange} />
+          <RangeSelect value={range} onChange={onRangeChange} options={rangeOptions} />
           <TypeSwitch value={mode} onChange={onModeChange} />
         </div>
       )}
