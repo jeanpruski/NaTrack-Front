@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { ArrowLeft, Flag, Layers, Lock, LockOpen } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Flag, Layers, Lock, LockOpen } from "lucide-react";
 import { LayoutGroup, motion } from "framer-motion";
 import { InfoPopover } from "../components/InfoPopover";
 import { HEADER_SURFACE_CLASS, HEADER_TOP_PADDING_STYLE } from "../constants/layout";
@@ -98,12 +98,14 @@ export function AppHeader({
   title,
   editorTargetName,
   loggedUserName,
+  editorIcon = "pencil",
   onOpenEditor,
   onModeChange,
   onRangeChange,
   onBack,
   cardsFilter,
   cardsExtraAction,
+  cardsHideLockedAction,
 }) {
   const didMountRef = useRef(false);
   const prevOnBackRef = useRef(false);
@@ -245,7 +247,13 @@ export function AppHeader({
                 }`}
               />
               <span className="inline-flex items-center gap-1.5 relative z-10">
-                {isAuth ? "✏️" : "🔓"}
+                {!isAuth ? (
+                  "🔓"
+                ) : editorIcon === "user" ? (
+                  "🪪"
+                ) : (
+                  "✏️"
+                )}
                 {isAuth && loggedUserName && <span className="sm:inline">{` ${loggedUserName}`}</span>}
               </span>
             </button>
@@ -270,12 +278,32 @@ export function AppHeader({
 
       {!showFilters && cardsFilter && (
         <div className="flex items-center justify-end gap-2 xl:hidden">
+          {cardsHideLockedAction && (
+            <button
+              type="button"
+              onClick={cardsHideLockedAction.onClick}
+              aria-label={cardsHideLockedAction.active ? "Masquer les cartes verrouillées" : "Afficher les cartes verrouillées"}
+              className="inline-flex items-center justify-center rounded-xl bg-slate-200 p-2 text-slate-900 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              {cardsHideLockedAction.active ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          )}
           <CardsFilterSwitch value={cardsFilter.value} onChange={cardsFilter.onChange} />
         </div>
       )}
 
       {!showFilters && cardsFilter && (
         <div className="hidden xl:flex items-center justify-end gap-3">
+          {cardsHideLockedAction && (
+            <button
+              type="button"
+              onClick={cardsHideLockedAction.onClick}
+              aria-label={cardsHideLockedAction.active ? "Masquer les cartes verrouillées" : "Afficher les cartes verrouillées"}
+              className="inline-flex items-center justify-center rounded-xl bg-slate-200 p-2 text-slate-900 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              {cardsHideLockedAction.active ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          )}
           <CardsFilterSwitch value={cardsFilter.value} onChange={cardsFilter.onChange} />
         </div>
       )}

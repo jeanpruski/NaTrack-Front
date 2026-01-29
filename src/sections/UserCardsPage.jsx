@@ -13,6 +13,7 @@ export function UserCardsPage({
   isAdmin = false,
   currentUserId = null,
   showAllCardsFront = false,
+  hideLockedCards = false,
   isAuth = false,
   authToken = null,
   cardResults = [],
@@ -108,6 +109,20 @@ export function UserCardsPage({
     return sorted;
   }, [filter, usersSortedByAvg, botsOnlyByAvg, sorted, currentUserId, unlockedBotIds]);
 
+  const isLockedBot = useCallback(
+    (u) =>
+      !!u?.is_bot &&
+      !showAllCardsFront &&
+      !unlockedBotIds.has(String(u.id)) &&
+      !unlockedBotIds.has(`name:${String(u.name || "").toLowerCase()}`),
+    [showAllCardsFront, unlockedBotIds]
+  );
+
+  const visibleUsers = useMemo(() => {
+    if (!hideLockedCards) return filteredUsers;
+    return filteredUsers.filter((u) => !isLockedBot(u));
+  }, [filteredUsers, hideLockedCards, isLockedBot]);
+
   useEffect(() => {
     if (!showResultsInfo || !resultsUser?.id) return;
     if (!isAuth || !authToken) {
@@ -188,7 +203,7 @@ export function UserCardsPage({
         offsetYMobile={0}
       />
       <div className="mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-4">
-        {filteredUsers.map((u) => (
+        {visibleUsers.map((u) => (
           <div key={u.id} className="flex w-[360px] min-w-[342px] flex-col items-center gap-2">
             <UserHoloCard
               user={u}
@@ -196,12 +211,7 @@ export function UserCardsPage({
               showBotAverage
               minSpinnerMs={500}
               userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
-              showBackOnly={
-                !showAllCardsFront &&
-                u?.is_bot &&
-                !unlockedBotIds.has(String(u.id)) &&
-                !unlockedBotIds.has(`name:${String(u.name || "").toLowerCase()}`)
-              }
+              showBackOnly={isLockedBot(u)}
               autoTiltVariant="soft"
               userRankInfo={{
                 index: u?.is_bot ? botRankById.get(u.id) : userRankById.get(u.id),

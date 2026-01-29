@@ -48,7 +48,9 @@ export function GlobalDashboard({
 }) {
   const [newsImageReady, setNewsImageReady] = useState(false);
   const [newsImageReady2, setNewsImageReady2] = useState(false);
+  const [newsImageReadySeason, setNewsImageReadySeason] = useState(false);
   const [showNotifInfo, setShowNotifInfo] = useState(false);
+  const [showBotsInPodium, setShowBotsInPodium] = useState(true);
   const [notifAnchorRect] = useState(null);
   useEffect(() => {
     const img = new Image();
@@ -80,9 +82,25 @@ export function GlobalDashboard({
       img.onerror = null;
     };
   }, []);
+  useEffect(() => {
+    const img = new Image();
+    const done = () => setNewsImageReadySeason(true);
+    img.onload = done;
+    img.onerror = done;
+    img.src = "/news/saison0-2026.jpg";
+    if (img.complete) setNewsImageReadySeason(true);
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, []);
   const subtitle = mode === "all" ? rangeLabel : `${rangeLabel} · ${modeLabel || ""}`.trim();
+  const podiumUsers = useMemo(() => {
+    return showBotsInPodium ? users : users.filter((u) => !u?.is_bot);
+  }, [users, showBotsInPodium]);
+
   const totals = useMemo(() => {
-    return users
+    return podiumUsers
       .map((u) => ({
         id: u.id,
         name: u.name,
@@ -90,12 +108,12 @@ export function GlobalDashboard({
         isBot: Boolean(u?.is_bot),
       }))
       .sort((a, b) => b.total - a.total);
-  }, [users, totalsByUser]);
+  }, [podiumUsers, totalsByUser]);
 
   const monthKeys = useMemo(() => buildMonthKeys(sessions), [sessions]);
   const sparklineMap = useMemo(() => {
     const map = new Map();
-    users.forEach((u) => map.set(u.id, monthKeys.map(() => 0)));
+    podiumUsers.forEach((u) => map.set(u.id, monthKeys.map(() => 0)));
     if (!monthKeys.length) return map;
     const keyIndex = new Map(monthKeys.map((k, i) => [k, i]));
     sessions.forEach((s) => {
@@ -107,7 +125,7 @@ export function GlobalDashboard({
       arr[idx] += Number(s.distance) || 0;
     });
     return map;
-  }, [sessions, users, monthKeys]);
+  }, [sessions, podiumUsers, monthKeys]);
 
   const getRemainingDays = (dueDate) => {
     if (!dueDate) return null;
@@ -301,6 +319,29 @@ export function GlobalDashboard({
             </div>
             <div className="p-4">
               <div className="grid gap-3 md:grid-cols-2">
+                <div
+                  className="relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm dark:border-slate-700 dark:text-slate-100"
+                  style={{
+                    backgroundImage: newsImageReadySeason ? "url(/news/saison0-2026.jpg)" : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "50% 10%",
+                  }}
+                >
+                  {!newsImageReadySeason && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/60">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400/70 border-t-transparent" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-slate-950/30" aria-hidden="true" />
+                  <div className="relative text-slate-100">
+                    <div className="text-sm font-semibold uppercase tracking-wide text-slate-100/80">
+                      Début Saison 0
+                    </div>
+                    <div className="mt-1 text-xl font-semibold">
+                      Lundi 2 février 2026 <span className="italic font-normal"></span>
+                    </div>
+                  </div>
+                </div>
               <a
                 href="https://www.adidas10kparis.fr/fr/participer/s-inscrire"
                 target="_blank"
@@ -325,7 +366,7 @@ export function GlobalDashboard({
                   </div>
                 </div>
             </a>
-              <a
+              {/* <a
                 href="https://www.protiming.fr/runnings/detail/7930"
                 target="_blank"
                 rel="noreferrer"
@@ -348,7 +389,7 @@ export function GlobalDashboard({
                     Dimanche 14 Juin 2026 <span className="italic font-normal">(Reims)</span>
                   </div>
                 </div>
-              </a>
+              </a> */}
               </div>
             </div>
           </div>
@@ -359,6 +400,13 @@ export function GlobalDashboard({
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 🏆 Podium - {subtitle}
               </h2>
+              <button
+                type="button"
+                onClick={() => setShowBotsInPodium((prev) => !prev)}
+                className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+              >
+                {showBotsInPodium ? "Masquer les bots" : "Afficher les bots"}
+              </button>
             </div>
             <div className="p-4">
               {!users.length ? (

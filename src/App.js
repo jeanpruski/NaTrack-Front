@@ -66,6 +66,7 @@ export default function App() {
   const [showCardsPage, setShowCardsPage] = useState(false);
   const [cardsFilter, setCardsFilter] = useState("mixte");
   const [showAllCardsFront, setShowAllCardsFront] = useState(false);
+  const [hideLockedCards, setHideLockedCards] = useState(false);
   const [toast, setToast] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -1056,6 +1057,7 @@ export default function App() {
           isAuth={isAuth}
           showEditor={!showCardsPage && showEditorButton}
           showFilters={!showCardsPage}
+          editorIcon={isGlobalView ? "user" : "pencil"}
           cardsFilter={
             showCardsPage
               ? {
@@ -1070,6 +1072,14 @@ export default function App() {
                   label: showAllCardsFront ? "Masquer" : "Tout afficher",
                   active: showAllCardsFront,
                   onClick: () => setShowAllCardsFront((prev) => !prev),
+                }
+              : null
+          }
+          cardsHideLockedAction={
+            showCardsPage
+              ? {
+                  active: hideLockedCards,
+                  onClick: () => setHideLockedCards((prev) => !prev),
                 }
               : null
           }
@@ -1159,6 +1169,7 @@ export default function App() {
                   isAdmin={isAdmin}
                   currentUserId={user?.id || null}
                   showAllCardsFront={showAllCardsFront}
+                  hideLockedCards={hideLockedCards}
                   isAuth={isAuth}
                   authToken={authToken}
                   cardResults={cardResults}
@@ -1241,6 +1252,11 @@ export default function App() {
         className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 h-[6px] bg-gradient-to-r from-sky-400 via-lime-300 to-emerald-300"
         aria-hidden="true"
       />
+      <div className="fixed bottom-8 left-8 z-40 text-xs text-slate-500 dark:text-slate-400">
+        <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
+          Alpha 0.0.1
+        </span>
+      </div>
 
       <EditModal
         open={showEditModal}
