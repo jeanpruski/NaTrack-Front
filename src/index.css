@@ -91,6 +91,12 @@ code {
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Audiowide&display=swap");
+
+.font-audiowide {
+  font-family: "Audiowide", system-ui, sans-serif;
+}
+
 html, body {
   font-family: 'Inter', sans-serif;
 }

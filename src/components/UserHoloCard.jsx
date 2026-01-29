@@ -25,6 +25,7 @@ export function UserHoloCard({
   const isBot = Boolean(user?.is_bot);
   const botCardType = user?.bot_card_type || "";
   const botEventDate = user?.bot_event_date || "";
+  const botSeason = user?.bot_season_int;
   const botColor = user?.bot_color || "";
   const botBorderColor = user?.bot_border_color || (isBot ? "#992929" : "");
   const showShoeDetails = Boolean(userShoeName);
@@ -78,12 +79,32 @@ export function UserHoloCard({
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
+  const getLuminance = (hex) => {
+    if (!hex) return null;
+    const clean = String(hex).replace("#", "").trim();
+    if (![3, 6].includes(clean.length)) return null;
+    const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+    const num = Number.parseInt(full, 16);
+    if (Number.isNaN(num)) return null;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    const srgb = [r, g, b].map((v) => {
+      const x = v / 255;
+      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+  };
+
   const botGradient =
     isBot && botColor
       ? `linear-gradient(135deg, ${toRgba(botColor, 0.35)}, ${toRgba(botColor, 0.7)}, ${toRgba(botColor, 0.95)})`
       : "";
   const botBorderGradient =
     isBot && botBorderColor ? `linear-gradient(135deg, ${botBorderColor}, #000000)` : "";
+  const botBorderLuminance = getLuminance(botBorderColor);
+  const badgeTextClass =
+    botBorderLuminance !== null && botBorderLuminance < 0.55 ? "text-slate-50" : "text-slate-900";
 
   useEffect(() => {
     if (showBackOnlySafe) {
@@ -278,7 +299,7 @@ export function UserHoloCard({
           }}
         >
             <div className={`transition-opacity duration-300 ${showContent ? "opacity-100" : "opacity-0"}`}>
-            <div className="mt-2 flex items-center justify-end gap-1 text-right text-2xl font-black tracking-tight">
+            <div className="relative mt-2 flex items-center justify-end gap-1 text-right text-2xl font-black tracking-tight">
             {isBot ? (
               <Bot size={18} className="text-rose-300" />
             ) : (
@@ -287,7 +308,7 @@ export function UserHoloCard({
             <span>{displayName}</span>
             </div>
             <div
-            className="relative mt-3 aspect-[6/4] w-full overflow-hidden rounded-[22px] border border-emerald-200/40 bg-gradient-to-br from-slate-900 via-emerald-900/40 to-slate-900"
+            className="relative mt-3 aspect-[6/4] w-full overflow-visible rounded-[22px] border border-emerald-200/40 bg-gradient-to-br from-slate-900 via-emerald-900/40 to-slate-900"
             style={
               userCardImage
                 ? {
@@ -298,6 +319,14 @@ export function UserHoloCard({
                 : undefined
             }
           >
+            {isBot && botSeason !== null && botSeason !== undefined && botSeason !== "" && (
+              <span
+                className={`absolute -bottom-1.5 -left-0 text-[20px] font-audiowide ${badgeTextClass}`}
+                style={{ opacity: 0.8 }}
+              >
+                {Number(botSeason)}
+              </span>
+            )}
             {userCardImage && (
               <img
                 src={userCardImage}

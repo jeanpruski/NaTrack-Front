@@ -106,7 +106,11 @@ export function UserCardsPage({
       return [me, ...usersSortedByAvg.filter((u) => u.id !== currentUserId)];
     }
     if (filter === "bots") {
-      return botsByAvgDesc;
+      const isUnlocked = (u) =>
+        unlockedBotIds.has(String(u.id)) || unlockedBotIds.has(`name:${String(u.name || "").toLowerCase()}`);
+      const unlocked = botsByAvgDesc.filter((u) => isUnlocked(u));
+      const locked = botsOnlyByAvg.filter((u) => !isUnlocked(u));
+      return [...unlocked, ...locked];
     }
     return sorted;
   }, [filter, usersSortedByAvg, botsByAvgDesc, sorted, currentUserId]);
