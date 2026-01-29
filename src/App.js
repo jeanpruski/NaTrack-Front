@@ -967,14 +967,27 @@ export default function App() {
   const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
   const cardsUnlockedCounts = useMemo(() => {
     const counts = { defi: 0, rare: 0, evenement: 0 };
+    const totals = { defi: 0, rare: 0, evenement: 0 };
+    (users || []).forEach((u) => {
+      if (!u?.is_bot) return;
+      const type = String(u?.bot_card_type || "").toLowerCase();
+      if (type === "defi" || type === "rare" || type === "evenement") {
+        totals[type] += 1;
+      }
+    });
     (cardResults || []).forEach((r) => {
       const type = String(r?.type || "").toLowerCase();
       if (type === "defi" || type === "rare" || type === "evenement") {
         counts[type] += 1;
       }
     });
-    return counts;
-  }, [cardResults]);
+    return {
+      ...counts,
+      defiTotal: totals.defi,
+      rareTotal: totals.rare,
+      evenementTotal: totals.evenement,
+    };
+  }, [cardResults, users]);
 
   if (loadingPhase !== "done" || FORCE_LOADING) {
     return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;

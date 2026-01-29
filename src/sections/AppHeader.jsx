@@ -265,17 +265,19 @@ export function AppHeader({
 
       {!showFilters && cardsUnlockedCounts && (
         <div className="hidden xl:flex flex-1 items-center justify-center">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+          <div
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow dark:bg-slate-700/70 dark:text-slate-100"
             aria-label="Nombre de cartes débloquées"
           >
-            {cardsUnlockedCounts.defi || 0} <Swords size={14} aria-hidden="true" />
+            {cardsUnlockedCounts.defi || 0}/{cardsUnlockedCounts.defiTotal || 0}{" "}
+            <Swords size={14} aria-hidden="true" />
             <span className="opacity-60">·</span>
-            {cardsUnlockedCounts.rare || 0} <Sparkles size={14} aria-hidden="true" />
+            {cardsUnlockedCounts.rare || 0}/{cardsUnlockedCounts.rareTotal || 0}{" "}
+            <Sparkles size={14} aria-hidden="true" />
             <span className="opacity-60">·</span>
-            {cardsUnlockedCounts.evenement || 0} <Newspaper size={14} aria-hidden="true" />
-          </button>
+            {cardsUnlockedCounts.evenement || 0}/{cardsUnlockedCounts.evenementTotal || 0}{" "}
+            <Newspaper size={14} aria-hidden="true" />
+          </div>
         </div>
       )}
 
@@ -296,17 +298,19 @@ export function AppHeader({
       {!showFilters && (cardsFilter || cardsUnlockedCounts) && (
         <div className="flex items-center justify-between gap-2 xl:hidden w-full">
           {cardsUnlockedCounts ? (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-700"
+            <div
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow dark:bg-slate-700/70 dark:text-slate-100"
               aria-label="Nombre de cartes débloquées"
             >
-              {cardsUnlockedCounts.defi || 0} <Swords size={12} aria-hidden="true" />
+              {cardsUnlockedCounts.defi || 0}/{cardsUnlockedCounts.defiTotal || 0}{" "}
+              <Swords size={12} aria-hidden="true" />
               <span className="opacity-60">·</span>
-              {cardsUnlockedCounts.rare || 0} <Sparkles size={12} aria-hidden="true" />
+              {cardsUnlockedCounts.rare || 0}/{cardsUnlockedCounts.rareTotal || 0}{" "}
+              <Sparkles size={12} aria-hidden="true" />
               <span className="opacity-60">·</span>
-              {cardsUnlockedCounts.evenement || 0} <Newspaper size={12} aria-hidden="true" />
-            </button>
+              {cardsUnlockedCounts.evenement || 0}/{cardsUnlockedCounts.evenementTotal || 0}{" "}
+              <Newspaper size={12} aria-hidden="true" />
+            </div>
           ) : (
             <span />
           )}
