@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { Bot, Swords, Trophy, User } from "lucide-react";
+import { Bell, BellRing, Bot, Medal, Newspaper, Swords, Trophy, User } from "lucide-react";
 import { Reveal } from "../components/Reveal";
 import { InfoPopover } from "../components/InfoPopover";
 import { UserHoloCard } from "../components/UserHoloCard";
@@ -187,7 +187,11 @@ export function GlobalDashboard({
                     <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                       {hasUnreadNotif ? "Notification" : "Pas de notification"}
                     </div>
-                    <Swords size={20} className="text-slate-900 dark:text-white" />
+                    {hasUnreadNotif ? (
+                      <BellRing size={20} className="text-slate-900 dark:text-white" />
+                    ) : (
+                      <Bell size={20} className="text-slate-900 dark:text-white" />
+                    )}
                   </div>
                 </button>
                 <InfoPopover
@@ -302,7 +306,7 @@ export function GlobalDashboard({
                 <span className="pointer-events-none absolute inset-0 z-0 bg-emerald-300/45 opacity-0 transition-opacity duration-300 hover:opacity-100" />
                 <div className="relative z-10 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    <Trophy size={20} className="text-slate-900 dark:text-white" />
+                    <Medal size={20} className="text-slate-900 dark:text-white" />
                   </div>
                   <img src="/nacards-logo.png" alt="NaCards" className="h-7 w-auto" />
                 </div>
@@ -314,7 +318,10 @@ export function GlobalDashboard({
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
             <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                📰 Événements spéciaux
+                <span className="inline-flex items-center gap-2">
+                  <Newspaper size={18} />
+                  Événements spéciaux
+                </span>
               </h2>
             </div>
             <div className="p-4">
@@ -398,7 +405,10 @@ export function GlobalDashboard({
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
             <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                🏆 Podium - {subtitle}
+                <span className="inline-flex items-center gap-2">
+                  <Trophy size={18} />
+                  Podium - {subtitle}
+                </span>
               </h2>
               <button
                 type="button"

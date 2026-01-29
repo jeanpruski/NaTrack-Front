@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CalendarCheck,
   Calculator,
+  BarChart3,
   Waves,
   PersonStanding,
   Footprints,
@@ -13,7 +14,11 @@ import {
   Train,
   Plane,
   Globe,
+  Medal,
+  Scale,
   Trophy,
+  TrendingUpDown,
+  Target,
   Bot,
   User,
 } from "lucide-react";
@@ -277,7 +282,10 @@ export function Dashboard({
     <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
       <div className="flex flex-col gap-1 border-b px-4 py-3 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          📅 Comparatif mensuel — {mode === "all" ? "Mixte" : modeLabel}
+          <span className="inline-flex items-center gap-2">
+            <CalendarCheck size={18} />
+            Comparatif mensuel — {mode === "all" ? "Mixte" : modeLabel}
+          </span>
         </h2>
         <span className="text-xs text-slate-500 dark:text-slate-400 sm:text-right">
           {monthCompare.currentLabel} vs {monthCompare.lastLabel}
@@ -734,7 +742,12 @@ export function Dashboard({
         <Reveal as="section" className="flex flex-col gap-4 self-start">
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
             <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">📈 Séances</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <span className="inline-flex items-center gap-2">
+                  <TrendingUpDown size={18} />
+                  Séances
+                </span>
+              </h2>
             </div>
             <div className="p-4">
               <SwimChart sessions={shownSessions} mode={mode} />
@@ -744,7 +757,12 @@ export function Dashboard({
           {showMonthlyChart && (
             <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
               <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">📊 Cumulatif par mois</h2>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="inline-flex items-center gap-2">
+                    <BarChart3 size={18} />
+                    Cumulatif par mois
+                  </span>
+                </h2>
               </div>
               <div className="p-4">
                 <MonthlyBarChart sessions={shownSessions} />
@@ -763,7 +781,12 @@ export function Dashboard({
       <Reveal as="section" className="px-4 xl:px-8 pb-4">
         <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
           <div className="flex flex-col gap-1 border-b px-4 py-3 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">🎯 Objectifs distance</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <span className="inline-flex items-center gap-2">
+                <Target size={18} />
+                Objectifs distance
+              </span>
+            </h2>
             <div className="text-xs text-slate-500 dark:text-slate-400 sm:text-right">
               <span className="mr-2">Parcouru :</span>
               <span className="font-semibold text-slate-700 dark:text-slate-200">
@@ -820,7 +843,12 @@ export function Dashboard({
         <div className={`grid gap-4 ${mode === "all" ? "md:grid-cols-2" : ""}`}>
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
             <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">🏅 Records</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <span className="inline-flex items-center gap-2">
+                  <Medal size={18} />
+                  Records
+                </span>
+              </h2>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
               {mode !== "run" && (
@@ -910,7 +938,12 @@ export function Dashboard({
           {mode === "all" && (
             <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
               <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">⚖️ Répartition par sport</h2>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="inline-flex items-center gap-2">
+                    <Scale size={18} />
+                    Répartition par sport
+                  </span>
+                </h2>
               </div>
               <div className="p-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -948,7 +981,12 @@ export function Dashboard({
       <Reveal as="section" className="px-4 xl:px-8 pb-8">
         <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
           <div className="flex flex-col gap-1 border-b px-4 py-3 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">🗓️ Calendrier d'activité</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <span className="inline-flex items-center gap-2">
+                <CalendarDays size={18} />
+                Calendrier d'activité
+              </span>
+            </h2>
             {firstSessionLabel && (
               <span className="text-xs text-slate-500 dark:text-slate-400 sm:text-right">
                 1ere seance :{" "}

@@ -19,34 +19,42 @@ export function SwimChart({ sessions, mode = "all" }) {
 
   const normType = (t) => ((t || "swim").toLowerCase() === "run" ? "run" : "swim");
 
-  const { avgSwim, avgRun } = useMemo(() => {
-    let swimSum = 0, swimN = 0, runSum = 0, runN = 0;
+  const { avgSwim, avgRun, dailyData } = useMemo(() => {
+    const map = new Map();
     sessions.forEach((s) => {
       const d = Number(s.distance) || 0;
+      if (!d) return;
       const t = normType(s.type);
-      if (t === "run") { runSum += d; runN += 1; }
-      else { swimSum += d; swimN += 1; }
+      const key = dayjs(s.date).format("YYYY-MM-DD");
+      const prev = map.get(key) || { date: s.date, swimTotal: 0, runTotal: 0 };
+      if (t === "run") prev.runTotal += d;
+      else prev.swimTotal += d;
+      map.set(key, prev);
+    });
+    const daily = Array.from(map.entries())
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .map(([, v]) => v);
+    let swimSum = 0, swimN = 0, runSum = 0, runN = 0;
+    daily.forEach((row) => {
+      if (row.swimTotal > 0) { swimSum += row.swimTotal; swimN += 1; }
+      if (row.runTotal > 0) { runSum += row.runTotal; runN += 1; }
     });
     return {
       avgSwim: swimN ? Math.round(swimSum / swimN) : 0,
       avgRun: runN ? Math.round(runSum / runN) : 0,
+      dailyData: daily,
     };
   }, [sessions]);
 
   // Data : 2 séries dans le même tableau (une valeur par type, l'autre = null)
   const data = useMemo(() => {
-    return [...sessions]
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .map((s) => {
-        const t = normType(s.type);
-        return {
-          ...s,
-          dateLabel: dayjs(s.date).format("DD/MM"),
-          swimDistance: t === "swim" ? Number(s.distance) || 0 : null,
-          runDistance: t === "run" ? Number(s.distance) || 0 : null,
-        };
-      });
-  }, [sessions]);
+    return dailyData.map((row) => ({
+      date: row.date,
+      dateLabel: dayjs(row.date).format("DD/MM"),
+      swimDistance: row.swimTotal > 0 ? row.swimTotal : null,
+      runDistance: row.runTotal > 0 ? row.runTotal : null,
+    }));
+  }, [dailyData]);
 
   if (!data.length) {
     return <p className="text-sm text-slate-600 dark:text-slate-300">Aucune donnée encore.</p>;

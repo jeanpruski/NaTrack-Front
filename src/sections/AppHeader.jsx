@@ -1,6 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { ArrowLeft, Eye, EyeOff, Flag, Layers, Lock, LockOpen, Newspaper, Sparkles, Swords } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Flag,
+  Layers,
+  Lock,
+  LockOpen,
+  Newspaper,
+  Pencil,
+  Sparkles,
+  Swords,
+  User,
+} from "lucide-react";
 import { LayoutGroup, motion } from "framer-motion";
 import { InfoPopover } from "../components/InfoPopover";
 import { HEADER_SURFACE_CLASS, HEADER_TOP_PADDING_STYLE } from "../constants/layout";
@@ -249,11 +262,17 @@ export function AppHeader({
               />
               <span className="inline-flex items-center gap-1.5 relative z-10">
                 {!isAuth ? (
-                  "🔓"
+                  <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
+                    <Lock size={16} aria-hidden="true" />
+                  </span>
                 ) : editorIcon === "user" ? (
-                  "🪪"
+                  <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
+                    <User size={16} aria-hidden="true" />
+                  </span>
                 ) : (
-                  "✏️"
+                  <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
+                    <Pencil size={16} aria-hidden="true" />
+                  </span>
                 )}
                 {isAuth && loggedUserName && <span className="sm:inline">{` ${loggedUserName}`}</span>}
               </span>
@@ -302,13 +321,13 @@ export function AppHeader({
               className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow dark:bg-slate-700/70 dark:text-slate-100"
               aria-label="Nombre de cartes débloquées"
             >
-              {cardsUnlockedCounts.defi || 0}/{cardsUnlockedCounts.defiTotal || 0}{" "}
+              <span className="text-[12px]">{cardsUnlockedCounts.defi || 0}<span className='opacity-70'>/{cardsUnlockedCounts.defiTotal || 0}{" "}</span></span>
               <Swords size={12} aria-hidden="true" />
               <span className="opacity-60">·</span>
-              {cardsUnlockedCounts.rare || 0}/{cardsUnlockedCounts.rareTotal || 0}{" "}
+              <span className="text-[12px]">{cardsUnlockedCounts.rare || 0}<span className='opacity-70'>/{cardsUnlockedCounts.rareTotal || 0}{" "}</span></span>
               <Sparkles size={12} aria-hidden="true" />
               <span className="opacity-60">·</span>
-              {cardsUnlockedCounts.evenement || 0}/{cardsUnlockedCounts.evenementTotal || 0}{" "}
+              <span className="text-[12px]">{cardsUnlockedCounts.evenement || 0}<span className='opacity-70'>/{cardsUnlockedCounts.evenementTotal || 0}{" "}</span></span>
               <Newspaper size={12} aria-hidden="true" />
             </div>
           ) : (
