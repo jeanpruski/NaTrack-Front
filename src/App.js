@@ -83,6 +83,7 @@ export default function App() {
   const authTransitionTimerRef = useRef(null);
   const loginRedirectRef = useRef(isAuth);
   const rangeTouchedRef = useRef(false);
+  const forceHomeRef = useRef(false);
   const swipeRef = useRef({ x: 0, y: 0, t: 0, moved: false });
   const didInitHistoryRef = useRef(false);
   const scrollTopSoonRef = useRef(null);
@@ -503,6 +504,7 @@ export default function App() {
   useEffect(() => {
     const wasAuth = loginRedirectRef.current;
     if (!wasAuth && isAuth) {
+      forceHomeRef.current = true;
       setShowCardsPage(false);
       setSelectedUser(null);
       setUserCardOpen(false);
@@ -625,6 +627,16 @@ export default function App() {
   }, [selectedUser, users]);
 
   useEffect(() => {
+    if (forceHomeRef.current) {
+      forceHomeRef.current = false;
+      if (routeState.type !== "root") {
+        setRouteState({ type: "root", slug: null });
+      }
+      if (selectedUser) setSelectedUser(null);
+      if (showCardsPage) setShowCardsPage(false);
+      if (userCardOpen) setUserCardOpen(false);
+      return;
+    }
     if (routeState.type === "root" && selectedUser) {
       const slug = getUserSlug(selectedUser);
       if (slug) {

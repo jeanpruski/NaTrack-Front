@@ -24,10 +24,11 @@ export function InfoPopover({
   useEffect(() => {
     if (!open) return;
     const isMobile = window.innerWidth < 640;
+    const mobileTopPadding = isMobile ? 24 : 0;
     const yOffset = isMobile ? offsetYMobile ?? offsetY : offsetY;
     if (fullWidth) {
       const baseTop = isMobile ? 12 : Math.round((anchorRect?.bottom || 64) + 8);
-      const top = Math.max(0, baseTop + yOffset);
+      const top = Math.max(0, baseTop + yOffset + mobileTopPadding);
       setComputedWidth(null);
       setComputedLeft(null);
       setComputedTop(top);
@@ -38,11 +39,11 @@ export function InfoPopover({
       const left = Math.min(Math.max(anchorRect.left, padding), maxLeft);
       setComputedWidth(width);
       setComputedLeft(left);
-      setComputedTop(Math.max(0, Math.round((anchorRect?.bottom || 64) + 8) + yOffset));
+      setComputedTop(Math.max(0, Math.round((anchorRect?.bottom || 64) + 8) + yOffset + mobileTopPadding));
     } else {
       setComputedWidth(null);
       setComputedLeft(null);
-      setComputedTop(Math.max(0, Math.round((anchorRect?.bottom || 64) + 8) + yOffset));
+      setComputedTop(Math.max(0, Math.round((anchorRect?.bottom || 64) + 8) + yOffset + mobileTopPadding));
     }
     const onDocClick = (evt) => {
       if (!ref.current) return;

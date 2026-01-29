@@ -206,17 +206,17 @@ export function GlobalDashboard({
                     showCardNotif
                       ? ""
                       : unreadNotifications.length
-                        ? "Notifications"
-                        : <span className="text-[26px] leading-tight">Pas de notification</span>
+                        ? <div className="text-center">Notifications</div>
+                        : <div className="text-[26px] leading-tight text-center">Pas de notification</div>
                   }
                   actionLabel={null}
-                  headerImage={showCardNotif ? null : "/big-logo.png"}
+                  headerImage={null}
                   items={
                     showCardNotif
                         ? [
                           <div key="card" className="grid gap-5">
-                            <div className="flex flex-col items-start gap-3">
-                              <div className="w-full text-left text-2xl leading-snug text-slate-900 dark:text-slate-100">
+                            <div className="flex flex-col items-center gap-3 text-center">
+                              <div className="w-full text-2xl leading-snug text-slate-900 dark:text-slate-100">
                                 {(() => {
                                   const body = cardNotification?.body;
                                   if (!body) return `${cardBot?.name || "Un bot"} te défie à la course !`;
@@ -229,13 +229,12 @@ export function GlobalDashboard({
                                   const dateLabel = match[3];
                                   return (
                                     <div>
-                                      <div className="flex items-center gap-2 text-[26px]">
-                                        <Swords size={22} className="text-slate-900 dark:text-slate-100" />
-                                        <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold underline">{distance}</span> !</span>
+                                      <div className="text-[26px]">
+                                        <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold">{distance}</span> !</span>
                                       </div>
                                       <div className="text-[18px]">
                                          Cours cette distance avant le{" "}
-                                        <span className="font-bold underline">{dateLabel}</span> pour gagner sa carte !
+                                        <span className="font-bold">{dateLabel}</span> pour gagner sa carte !
                                       </div>
                                     </div>
                                   );

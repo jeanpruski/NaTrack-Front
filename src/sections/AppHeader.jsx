@@ -226,13 +226,13 @@ export function AppHeader({
                     <Layers size={28} aria-hidden="true" />
                     <strong>Débloque et collectionne des cartes</strong>
                   </span>
-                  {"\n"}Chaque effort compte : plus tu t’entraînes, plus tu débloques de cartes à collectionner et de récompenses à afficher fièrement.
+                  {"\n"}Chaque effort compte : plus tu t’entraînes, plus tu débloques de cartes à collectionner et de récompenses à afficher fièrement. Des bots peuvent aussi te défier, transformant chaque sortie en duel, chaque foulée en affrontement — et faisant du running une véritable épopée.
                 </div>,
                 <div className="mt-[20px]">
-                  <strong className="underline">De nombreuses nouveautés et surprises arrivent bientôt avec en plus un tutoriel complet.</strong>
+                  <strong className="underline">De nombreuses nouveautés et surprises arrivent bientôt !</strong>
                 </div>,
                 <div className="mt-[60px] text-xs italic text-slate-500 dark:text-slate-400 text-right">
-                  Application réalisée en 2026 par la NaTrack Team
+                  NaTrack · Team 2026
                 </div>,
               ]}
               fullWidth
