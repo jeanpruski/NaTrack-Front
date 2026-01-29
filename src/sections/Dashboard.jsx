@@ -20,6 +20,9 @@ import {
   TrendingUpDown,
   Target,
   Bot,
+  Newspaper,
+  Sparkles,
+  Swords,
   User,
 } from "lucide-react";
 import { KpiChip } from "../components/KpiChip";
@@ -78,6 +81,7 @@ export function Dashboard({
   userCardOpen,
   onUserCardOpenChange,
   currentUserId,
+  cardsUnlockedCounts,
   activeChallenge,
   activeChallengeDueAt,
 }) {
@@ -100,6 +104,7 @@ export function Dashboard({
     !!activeChallenge &&
     currentUserId &&
     (!userInfo?.id || String(userInfo.id) === String(currentUserId));
+  const showCardCounts = !isBotUser && cardsUnlockedCounts && userInfo?.id;
 
   const formattedDueDate = (() => {
     if (!activeChallengeDueAt && !activeChallenge?.due_at && !activeChallenge?.due_date) return "";
@@ -229,19 +234,32 @@ export function Dashboard({
           }`}
         />
         <div className="relative flex items-center justify-between gap-2 text-xl sm:text-2xl font-black tracking-tight">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isBotUser ? (
               <Bot size={18} className="text-slate-900 dark:text-white" />
             ) : (
               <User size={18} className="text-slate-900 dark:text-white" />
             )}
-            <span>{displayName}</span>
+            <span className="whitespace-nowrap">{displayName}</span>
           </div>
-          <img
-            src="/nacards-logo.png"
-            alt="NaCards"
-            className="absolute right-0 top-1 h-7 w-auto opacity-85"
-          />
+          {showCardCounts && (
+            <span className="flex flex-wrap items-center gap-2 text-[18px] font-extrabold text-slate-800 dark:text-slate-100">
+              <span className="inline-flex items-center gap-0.5">
+                {cardsUnlockedCounts.defi || 0}
+                <Swords size={16} className="text-slate-700 dark:text-slate-200" />
+              </span>
+              <span className="opacity-60">·</span>
+              <span className="inline-flex items-center gap-0.5">
+                {cardsUnlockedCounts.rare || 0}
+                <Sparkles size={16} className="text-slate-700 dark:text-slate-200" />
+              </span>
+              <span className="opacity-60">·</span>
+              <span className="inline-flex items-center gap-0.5">
+                {cardsUnlockedCounts.evenement || 0}
+                <Newspaper size={16} className="text-slate-700 dark:text-slate-200" />
+              </span>
+            </span>
+          )}
         </div>
       </button>
     </Reveal>

@@ -243,6 +243,7 @@ export default function App() {
   };
 
   const [cardResults, setCardResults] = useState([]);
+  const [selectedUserCardCounts, setSelectedUserCardCounts] = useState(null);
   const refreshCardResults = async () => {
     if (!isAuth || !authToken) {
       setCardResults([]);
@@ -1185,6 +1186,29 @@ export default function App() {
     };
   }, [cardResults, users]);
 
+  useEffect(() => {
+    if (!selectedUserInfo?.id || !isAuth || !authToken) {
+      setSelectedUserCardCounts(null);
+      return;
+    }
+    if (user?.id && String(selectedUserInfo.id) === String(user.id)) {
+      setSelectedUserCardCounts(cardsUnlockedCounts);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiGet(`/users/${selectedUserInfo.id}/card-results-counts`, authToken);
+        if (alive) setSelectedUserCardCounts(data || null);
+      } catch {
+        if (alive) setSelectedUserCardCounts(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [selectedUserInfo?.id, isAuth, authToken, user?.id, cardsUnlockedCounts]);
+
   const handleRangeChange = (nextRange) => {
     rangeTouchedRef.current = true;
     setRange(nextRange);
@@ -1475,6 +1499,7 @@ export default function App() {
                   userCardOpen={userCardOpen}
                   onUserCardOpenChange={setUserCardOpen}
                   currentUserId={user?.id || null}
+                  cardsUnlockedCounts={selectedUserCardCounts}
                   activeChallenge={activeChallenge}
                   activeChallengeDueAt={activeChallengeDueAt}
                   shownSessions={shownSessions}
