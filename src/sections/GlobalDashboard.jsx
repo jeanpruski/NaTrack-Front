@@ -240,8 +240,8 @@ export function GlobalDashboard({
                                           <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold">{distanceLabel}</span> !</span>
                                         </div>
                                         <div className="text-[18px]">
-                                           Cours cette distance avant le{" "}
-                                          <span className="font-bold">{dateLabel}</span> pour gagner sa carte !
+                                           Cours au moins cette distance avant le{" "}
+                                          <span className="font-bold underline">{dateLabel}</span> pour gagner sa carte !
                                         </div>
                                       </div>
                                     );
@@ -259,9 +259,14 @@ export function GlobalDashboard({
                                       : distanceRaw;
                                     const cardName = eventMatch[2];
                                     return (
-                                      <div className="text-[26px]">
-                                        Fais <span className="font-bold">{distanceLabel}</span> km aujourd'hui pour gagner la carte{" "}
-                                        <span className="font-bold">{cardName}</span>
+                                      <div>
+                                        <div className="text-[26px]">
+                                          Fais <span className="font-bold">{distanceLabel}</span> km aujourd'hui pour gagner la carte{" "}
+                                          <span className="font-bold">{cardName}</span>
+                                        </div>
+                                        <div className="text-[18px]">
+                                          Cours cette distance avant <span className="underline">demain</span> pour gagner sa carte !
+                                        </div>
                                       </div>
                                     );
                                   }
