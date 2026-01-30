@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { X } from "lucide-react";
 
 export function InfoPopover({
   open,
@@ -93,10 +94,22 @@ export function InfoPopover({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.98 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="rounded-2xl border border-emerald-300/40 bg-white/95 shadow-lg backdrop-blur dark:border-emerald-400/20 dark:bg-slate-900/90 max-h-[80vh] overflow-y-auto"
+                className="relative rounded-2xl border border-emerald-300/40 bg-white/95 shadow-lg backdrop-blur dark:border-emerald-400/20 dark:bg-slate-900/90 max-h-[80vh] overflow-y-auto"
               >
-                <div className="h-2 w-full rounded-t-2xl bg-gradient-to-r from-emerald-300/70 via-lime-300/60 to-sky-400/50" />
-                <div className="p-6 text-sm text-slate-700 dark:text-slate-200">
+                <div className="sticky top-0 z-10">
+                  <div className="h-2 w-full rounded-t-2xl bg-gradient-to-r from-emerald-300/70 via-lime-300/60 to-sky-400/50" />
+                  <div className="flex justify-end p-4 pb-0">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-slate-800 shadow-sm transition hover:bg-white hover:text-slate-900 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:bg-slate-900"
+                      aria-label="Fermer"
+                    >
+                      <X size={20} strokeWidth={2.5} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <div className="px-6 pb-6 pt-0 -mt-2 text-sm text-slate-700 dark:text-slate-200">
                   {headerImage && (
                     <div className="flex flex-col items-start gap-2">
                       <img src={headerImage} alt="" className="h-10 w-auto" />
@@ -148,8 +161,20 @@ export function InfoPopover({
                 right: computedLeft !== null ? undefined : align === "right" ? "0px" : undefined,
               }}
             >
-              <div className="h-2 w-full rounded-t-2xl bg-gradient-to-r from-emerald-300/70 via-lime-300/60 to-sky-400/50" />
-              <div className="p-6 text-sm text-slate-700 dark:text-slate-200">
+              <div className="sticky top-0 z-10">
+                <div className="h-2 w-full rounded-t-2xl bg-gradient-to-r from-emerald-300/70 via-lime-300/60 to-sky-400/50" />
+                <div className="flex justify-end p-4 pb-0">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-slate-800 shadow-sm transition hover:bg-white hover:text-slate-900 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:bg-slate-900"
+                    aria-label="Fermer"
+                  >
+                    <X size={20} strokeWidth={2.5} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+              <div className="px-6 pb-6 pt-0 -mt-2 text-sm text-slate-700 dark:text-slate-200">
                 {headerImage && (
                   <div className="mb-4 flex flex-col items-start gap-2">
                     <img src={headerImage} alt="" className="h-10 w-auto" />

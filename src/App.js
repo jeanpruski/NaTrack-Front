@@ -52,9 +52,43 @@ const readCardParam = () => {
   return params.get("card") === "open";
 };
 
-const buildUserPath = (slug, withCard = false) =>
-  `/user/${encodeURIComponent(slug)}${withCard ? "?card=open" : ""}`;
-const buildCardsPath = () => "/cards";
+const parseModeParam = (value) => {
+  if (!value) return null;
+  const cleaned = String(value).toLowerCase();
+  return cleaned === "all" || cleaned === "run" || cleaned === "swim" ? cleaned : null;
+};
+
+const parseRangeParam = (value) => {
+  if (!value) return null;
+  const cleaned = String(value);
+  if (["all", "month", "3m", "6m"].includes(cleaned)) return cleaned;
+  if (/^\d{4}$/.test(cleaned)) return cleaned;
+  if (cleaned.startsWith("season:")) return cleaned;
+  return null;
+};
+
+const readFilterParams = () => {
+  if (typeof window === "undefined") return { mode: null, range: null };
+  const params = new URLSearchParams(window.location.search);
+  return {
+    mode: parseModeParam(params.get("mode")),
+    range: parseRangeParam(params.get("range")),
+  };
+};
+
+const buildSearchParams = ({ withCard, modeValue, rangeValue }) => {
+  const params = new URLSearchParams();
+  if (withCard) params.set("card", "open");
+  if (modeValue) params.set("mode", modeValue);
+  if (rangeValue) params.set("range", rangeValue);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+};
+
+const buildUserPath = (slug, withCard = false, modeValue = null, rangeValue = null) =>
+  `/user/${encodeURIComponent(slug)}${buildSearchParams({ withCard, modeValue, rangeValue })}`;
+const buildCardsPath = (modeValue = null, rangeValue = null) =>
+  `/cards${buildSearchParams({ withCard: false, modeValue, rangeValue })}`;
 
 /* =========================
    App principale
@@ -110,8 +144,8 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [activeSeasonInfo, setActiveSeasonInfo] = useState(null);
   const [seasons, setSeasons] = useState([]);
-  const [mode, setMode] = useState("run");   // all | swim | run
-  const [range, setRange] = useState(getInitialRange); // all | month | 6m | 3m | 2026 | 2025
+  const [mode, setMode] = useState(() => readFilterParams().mode || "run");   // all | swim | run
+  const [range, setRange] = useState(() => readFilterParams().range || getInitialRange()); // all | month | 6m | 3m | 2026 | 2025
   const [routeState, setRouteState] = useState(readRouteState);
   const [userCardOpen, setUserCardOpen] = useState(readCardParam);
 
@@ -155,6 +189,11 @@ export default function App() {
       if (delayTimer) clearTimeout(delayTimer);
       if (fadeTimer) clearTimeout(fadeTimer);
     };
+  }, []);
+
+  useEffect(() => {
+    const initialRange = readFilterParams().range;
+    if (initialRange) rangeTouchedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -281,6 +320,12 @@ export default function App() {
       const next = readRouteState();
       setRouteState(next);
       setUserCardOpen(readCardParam());
+      const { mode: nextMode, range: nextRange } = readFilterParams();
+      if (nextMode && nextMode !== mode) setMode(nextMode);
+      if (nextRange && nextRange !== range) {
+        rangeTouchedRef.current = true;
+        setRange(nextRange);
+      }
       if (scrollTopSoonRef.current) scrollTopSoonRef.current();
       if (next.type === "root") {
         setShowCardsPage(false);
@@ -298,7 +343,11 @@ export default function App() {
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [isAuth]);
+  }, [isAuth, mode, range]);
+
+  useEffect(() => {
+    updateUrlFilters(mode, range);
+  }, [mode, range]);
 
   useEffect(() => {
     if (!isAuth) {
@@ -352,6 +401,30 @@ export default function App() {
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [range, mode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const setAppHeight = () => {
+      const vv = window.visualViewport;
+      const height = vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight;
+      document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
+    };
+    setAppHeight();
+    window.addEventListener("resize", setAppHeight);
+    window.addEventListener("orientationchange", setAppHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", setAppHeight);
+      window.visualViewport.addEventListener("scroll", setAppHeight);
+    }
+    return () => {
+      window.removeEventListener("resize", setAppHeight);
+      window.removeEventListener("orientationchange", setAppHeight);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", setAppHeight);
+        window.visualViewport.removeEventListener("scroll", setAppHeight);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!showCardsPage) return;
@@ -701,7 +774,7 @@ export default function App() {
         setShowCardsPage(false);
         return;
       }
-      const path = buildCardsPath();
+      const path = buildCardsPath(mode, range);
       const current = `${window.location.pathname || "/"}${window.location.search || ""}`;
       if (current !== path) {
         window.history.pushState({}, "", path);
@@ -712,7 +785,7 @@ export default function App() {
     if (selectedUser) {
       const slug = getUserSlug(selectedUser);
       if (slug) {
-        const path = buildUserPath(slug, userCardOpen);
+        const path = buildUserPath(slug, userCardOpen, mode, range);
         const current = `${window.location.pathname || "/"}${window.location.search || ""}`;
         if (current !== path) {
           window.history.pushState({}, "", path);
@@ -1215,9 +1288,29 @@ export default function App() {
     };
   }, [selectedUserInfo?.id, isAuth, authToken, user?.id, cardsUnlockedCounts]);
 
+  const updateUrlFilters = (nextMode, nextRange) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (nextMode) params.set("mode", nextMode);
+    else params.delete("mode");
+    if (nextRange) params.set("range", nextRange);
+    else params.delete("range");
+    if (userCardOpen) params.set("card", "open");
+    else params.delete("card");
+    const search = params.toString();
+    const path = window.location.pathname || "/";
+    window.history.replaceState({}, "", search ? `${path}?${search}` : path);
+  };
+
   const handleRangeChange = (nextRange) => {
     rangeTouchedRef.current = true;
     setRange(nextRange);
+    updateUrlFilters(mode, nextRange);
+  };
+
+  const handleModeChange = (nextMode) => {
+    setMode(nextMode);
+    updateUrlFilters(nextMode, range);
   };
 
   if (loadingPhase !== "done" || FORCE_LOADING) {
@@ -1287,6 +1380,7 @@ export default function App() {
   return (
     <div
       className="
+        app-root
         min-h-[100dvh]
         relative
         bg-gradient-to-b
@@ -1355,7 +1449,7 @@ export default function App() {
             }
             setShowEditModal(true);
           }}
-          onModeChange={setMode}
+          onModeChange={handleModeChange}
           onRangeChange={handleRangeChange}
           onBack={showCardsPage || !isGlobalView ? handleBack : null}
         />
@@ -1533,6 +1627,7 @@ export default function App() {
         </main>
       </div>
 
+      <div className="app-safe-spacer" aria-hidden="true" />
       <div
         className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 h-[6px] bg-gradient-to-r from-sky-400 via-lime-300 to-emerald-300"
         aria-hidden="true"

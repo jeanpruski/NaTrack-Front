@@ -182,3 +182,18 @@ input[type="date"]::-moz-calendar-picker-indicator {
   opacity: 0;
   display: none;
 }
+
+.app-root {
+  min-height: var(--app-height, 100svh);
+  box-sizing: border-box;
+}
+
+@media (display-mode: standalone) {
+  .app-root {
+    min-height: var(--app-height, 100svh);
+  }
+}
+
+.app-safe-spacer {
+  height: env(safe-area-inset-bottom);
+}
