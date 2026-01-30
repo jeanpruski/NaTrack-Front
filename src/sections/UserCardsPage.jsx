@@ -2,6 +2,7 @@ import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { UserHoloCard } from "../components/UserHoloCard";
 import { InfoPopover } from "../components/InfoPopover";
 import { apiGet } from "../utils/api";
+import { formatKmFixed } from "../utils/appUtils";
 
 export function UserCardsPage({
   users,
@@ -144,9 +145,9 @@ export function UserCardsPage({
         if (!alive) return;
         const items = (Array.isArray(data) ? data : []).map((row, idx) => {
           const km = Number(row.distance_m) / 1000;
-          const kmLabel = Number.isFinite(km) ? `${km.toFixed(3)} km` : "—";
+          const kmLabel = Number.isFinite(km) ? `${formatKmFixed(km)} km` : "—";
           const targetKm = Number(row.target_distance_m) / 1000;
-          const targetLabel = Number.isFinite(targetKm) ? `${targetKm.toFixed(3)} km` : null;
+          const targetLabel = Number.isFinite(targetKm) ? `${formatKmFixed(targetKm)} km` : null;
           return (
             <div key={row.id || idx} className="flex items-center justify-between gap-4">
               <span className="text-sm text-slate-700 dark:text-slate-200">{row.achieved_at}</span>

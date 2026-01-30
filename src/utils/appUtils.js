@@ -14,6 +14,15 @@ export const formatDistance = (meters, nf) => {
 
 export const formatKmDecimal = (meters, nfDecimal) => `${nfDecimal.format(meters / 1000)} km`;
 
+export const formatKmFixed = (km, digits = 3) => {
+  if (!Number.isFinite(km)) return "";
+  const formatter = new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  return formatter.format(km);
+};
+
 export const weekOfMonthLabel = (date) => {
   const d = dayjs(date);
   const weekNum = Math.ceil(d.date() / 7);

@@ -232,7 +232,7 @@ export function AppHeader({
                   <strong className="underline">De nombreuses nouveautés et surprises arrivent bientôt !</strong>
                 </div>,
                 <div className="mt-[60px] text-xs italic text-slate-500 dark:text-slate-400 text-right">
-                  NaTrack · Team 2026
+                  NaTrack Team · 2026
                 </div>,
               ]}
               fullWidth

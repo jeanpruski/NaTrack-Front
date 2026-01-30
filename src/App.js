@@ -20,7 +20,7 @@ import { apiGet, apiJson } from "./utils/api";
 import { downloadCSV } from "./utils/downloadCSV";
 import { parseCSV } from "./utils/parseCSV";
 import { capFirst } from "./utils/strings";
-import { getInitialRange, normType, normalizeSession, parseDateValue } from "./utils/appUtils";
+import { formatKmFixed, getInitialRange, normType, normalizeSession, parseDateValue } from "./utils/appUtils";
 
 dayjs.locale("fr");
 dayjs.extend(customParseFormat);
@@ -317,13 +317,19 @@ export default function App() {
 
   const activeChallengeDueAt = useMemo(() => {
     if (!activeChallenge?.id) return null;
-    const startNotif = notifications.find(
-      (n) => n.type === "challenge_start" && n?.meta?.challenge_id === activeChallenge.id
-    );
+    const startNotif = notifications.find((n) => {
+      const isStartType =
+        activeChallenge.type === "evenement"
+          ? n.type === "event_start" || n.type === "challenge_start"
+          : n.type === "challenge_start";
+      if (!isStartType) return false;
+      const metaId = n?.meta?.challenge_id ?? n?.meta?.event_id;
+      return metaId && String(metaId) === String(activeChallenge.id);
+    });
     if (!startNotif?.created_at) return null;
     const start = dayjs(startNotif.created_at);
     if (!start.isValid()) return null;
-    const due = activeChallenge.type === "evenement" ? start : start.add(3, "day");
+    const due = activeChallenge.type === "evenement" ? start.endOf("day") : start.add(3, "day");
     return due.toDate();
   }, [activeChallenge, notifications]);
 
@@ -1395,11 +1401,11 @@ export default function App() {
                           Tu as battu <strong>{victoryInfo.botName}</strong>
                           {" "}•{" "}
                           <span className="font-semibold text-slate-900 dark:text-slate-100">
-                            {Number.isFinite(victoryInfo.actualKm) ? `${victoryInfo.actualKm.toFixed(3)} km` : "—"}
+                            {Number.isFinite(victoryInfo.actualKm) ? `${formatKmFixed(victoryInfo.actualKm)} km` : "—"}
                           </span>
                           {" "}vs{" "}
                           <span className="font-semibold text-slate-900 dark:text-slate-100">
-                            {Number.isFinite(victoryInfo.distanceKm) ? `${victoryInfo.distanceKm.toFixed(3)} km` : "—"}
+                            {Number.isFinite(victoryInfo.distanceKm) ? `${formatKmFixed(victoryInfo.distanceKm)} km` : "—"}
                           </span>
                         </div>
                         <div className="flex justify-center">

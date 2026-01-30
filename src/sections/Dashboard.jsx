@@ -35,7 +35,7 @@ import { UserHoloCard } from "../components/UserHoloCard";
 import { Reveal } from "../components/Reveal";
 import { TypePill } from "../components/TypePill";
 import { capFirst } from "../utils/strings";
-import { formatDistance, formatKmDecimal, pluralize, weekOfMonthLabel } from "../utils/appUtils";
+import { formatDistance, formatKmDecimal, formatKmFixed, pluralize, weekOfMonthLabel } from "../utils/appUtils";
 
 const PROGRESS_GOALS = [
   { id: "paris-disneyland", label: "Paris → Disneyland", targetMeters: 45000, Icon: Car },
@@ -108,6 +108,7 @@ export function Dashboard({
 
   const formattedDueDate = (() => {
     if (!activeChallengeDueAt && !activeChallenge?.due_at && !activeChallenge?.due_date) return "";
+    if (activeChallenge?.type === "evenement") return "demain";
     const dateValue = activeChallengeDueAt || activeChallenge.due_at || activeChallenge.due_date;
     const formatted = dayjs(dateValue)
       .locale("fr")
@@ -121,7 +122,7 @@ export function Dashboard({
   })();
 
   const challengeKm = activeChallenge?.target_distance_m
-    ? (Number(activeChallenge.target_distance_m) / 1000).toFixed(3)
+    ? formatKmFixed(Number(activeChallenge.target_distance_m) / 1000)
     : null;
 
   const toRgba = (hex, alpha) => {

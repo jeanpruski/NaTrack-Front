@@ -4,6 +4,7 @@ import { Bell, BellRing, Bot, Medal, Newspaper, Swords, Trophy, User } from "luc
 import { Reveal } from "../components/Reveal";
 import { InfoPopover } from "../components/InfoPopover";
 import { UserHoloCard } from "../components/UserHoloCard";
+import { formatKmFixed } from "../utils/appUtils";
 
 function buildMonthKeys(sessions) {
   const set = new Set();
@@ -220,24 +221,51 @@ export function GlobalDashboard({
                                 {(() => {
                                   const body = cardNotification?.body;
                                   if (!body) return `${cardBot?.name || "Un bot"} te défie à la course !`;
-                                  const match = body.match(
+                                  const challengeMatch = body.match(
                                     /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) avant le (.+) pour gagner sa carte !$/i
                                   );
-                                  if (!match) return body;
-                                  const botName = match[1];
-                                  const distance = match[2];
-                                  const dateLabel = match[3];
-                                  return (
-                                    <div>
-                                      <div className="text-[26px]">
-                                        <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold">{distance}</span> !</span>
+                                  if (challengeMatch) {
+                                    const botName = challengeMatch[1];
+                                    const distanceRaw = challengeMatch[2];
+                                    const distanceNum = Number.parseFloat(
+                                      String(distanceRaw).toLowerCase().replace("km", "").replace(/\s+/g, "").replace(",", ".")
+                                    );
+                                    const distanceLabel = Number.isFinite(distanceNum)
+                                      ? `${formatKmFixed(distanceNum)} km`
+                                      : distanceRaw;
+                                    const dateLabel = challengeMatch[3];
+                                    return (
+                                      <div>
+                                        <div className="text-[26px]">
+                                          <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold">{distanceLabel}</span> !</span>
+                                        </div>
+                                        <div className="text-[18px]">
+                                           Cours cette distance avant le{" "}
+                                          <span className="font-bold">{dateLabel}</span> pour gagner sa carte !
+                                        </div>
                                       </div>
-                                      <div className="text-[18px]">
-                                         Cours cette distance avant le{" "}
-                                        <span className="font-bold">{dateLabel}</span> pour gagner sa carte !
-                                      </div>
-                                    </div>
+                                    );
+                                  }
+                                  const eventMatch = body.match(
+                                    /^Fais\s+([0-9.,\s]+)\s*km\s+aujourd'hui\s+pour\s+gagner\s+la\s+carte\s+(.+)$/i
                                   );
+                                  if (eventMatch) {
+                                    const distanceRaw = eventMatch[1];
+                                    const distanceNum = Number.parseFloat(
+                                      String(distanceRaw).toLowerCase().replace("km", "").replace(/\s+/g, "").replace(",", ".")
+                                    );
+                                    const distanceLabel = Number.isFinite(distanceNum)
+                                      ? formatKmFixed(distanceNum)
+                                      : distanceRaw;
+                                    const cardName = eventMatch[2];
+                                    return (
+                                      <div className="text-[26px]">
+                                        Fais <span className="font-bold">{distanceLabel}</span> km aujourd'hui pour gagner la carte{" "}
+                                        <span className="font-bold">{cardName}</span>
+                                      </div>
+                                    );
+                                  }
+                                  return body;
                                 })()}
                               </div>
                             </div>
