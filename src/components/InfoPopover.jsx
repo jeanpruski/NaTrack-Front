@@ -24,7 +24,7 @@ export function InfoPopover({
   useEffect(() => {
     if (!open) return;
     const isMobile = window.innerWidth < 640;
-    const mobileTopPadding = isMobile ? 24 : 0;
+    const mobileTopPadding = isMobile ? 48 : 0;
     const yOffset = isMobile ? offsetYMobile ?? offsetY : offsetY;
     if (fullWidth) {
       const baseTop = isMobile ? 12 : Math.round((anchorRect?.bottom || 64) + 8);

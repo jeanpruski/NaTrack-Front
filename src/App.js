@@ -385,7 +385,7 @@ export default function App() {
   const seasonLabel =
     activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
       ? `Saison ${activeSeasonInfo.season_number}`
-      : "Saison X";
+      : null;
   const seasonsSortedAsc = useMemo(() => {
     return [...(seasons || [])].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   }, [seasons]);
@@ -1359,13 +1359,11 @@ export default function App() {
           onRangeChange={handleRangeChange}
           onBack={showCardsPage || !isGlobalView ? handleBack : null}
         />
-        {seasonLabel && (
-          <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
-            <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-              {seasonLabel} · Alpha 0.0.1
-            </span>
-          </div>
-        )}
+        <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
+          <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
+            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.1
+          </span>
+        </div>
 
         <main
           ref={mainRef}

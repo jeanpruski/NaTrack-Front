@@ -92,6 +92,7 @@ export function Dashboard({
   const cardUser = userInfo || (userName ? { name: userName } : {});
   const userRunningAvgKm = userInfo ? userRunningAvgById?.get(userInfo.id) : null;
   const isBotUser = Boolean(userInfo?.is_bot);
+  const botCardType = userInfo?.bot_card_type || "";
   const isSeasonRange = String(range || "").startsWith("season:");
   const selectedSeasonKey = isSeasonRange ? String(range || "").split(":")[1] : null;
   const isActiveSeasonRange =
@@ -106,9 +107,10 @@ export function Dashboard({
     (!userInfo?.id || String(userInfo.id) === String(currentUserId));
   const showCardCounts = !isBotUser && cardsUnlockedCounts && userInfo?.id;
 
+  const isEventChallenge = activeChallenge?.type === "evenement";
   const formattedDueDate = (() => {
     if (!activeChallengeDueAt && !activeChallenge?.due_at && !activeChallenge?.due_date) return "";
-    if (activeChallenge?.type === "evenement") return "demain";
+    if (isEventChallenge) return "demain";
     const dateValue = activeChallengeDueAt || activeChallenge.due_at || activeChallenge.due_date;
     const formatted = dayjs(dateValue)
       .locale("fr")
@@ -120,6 +122,14 @@ export function Dashboard({
     const month = cap(parts[2]);
     return `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`;
   })();
+
+  const dueLabel = isEventChallenge
+    ? <>À réaliser avant <span className="underline">demain</span></>
+    : (
+        <>
+          À réaliser avant le <span className="underline">{formattedDueDate}</span>
+        </>
+      );
 
   const challengeKm = activeChallenge?.target_distance_m
     ? formatKmFixed(Number(activeChallenge.target_distance_m) / 1000)
@@ -261,6 +271,17 @@ export function Dashboard({
               </span>
             </span>
           )}
+          {isBotUser && botCardType && (
+            <span className="inline-flex items-center gap-1 text-[18px] text-slate-800 dark:text-slate-100">
+              {botCardType === "defi" ? (
+                <Swords size={18} className="text-slate-700 dark:text-slate-200" />
+              ) : botCardType === "rare" ? (
+                <Sparkles size={18} className="text-slate-700 dark:text-slate-200" />
+              ) : botCardType === "evenement" ? (
+                <Newspaper size={18} className="text-slate-700 dark:text-slate-200" />
+              ) : null}
+            </span>
+          )}
         </div>
       </button>
     </Reveal>
@@ -280,7 +301,7 @@ export function Dashboard({
                     Défi en cours contre {activeChallenge.bot_name || "un bot"}
                   </div>
                   <div className="text-xs text-rose-700 dark:text-rose-200 sm:text-right">
-                    <span className="hidden sm:inline">À réaliser avant le {formattedDueDate}</span>
+                    <span className="hidden sm:inline">{dueLabel}</span>
                   </div>
                 </div>
                 {challengeKm && (
@@ -289,7 +310,7 @@ export function Dashboard({
                   </div>
                 )}
                 <div className="mt-2 text-xs text-rose-700 dark:text-rose-200 sm:hidden">
-                  À réaliser avant le {formattedDueDate}
+                  {dueLabel}
                 </div>
               </div>
             </Reveal>
@@ -440,7 +461,7 @@ export function Dashboard({
                     Défi en cours contre {activeChallenge.bot_name || "un bot"}
                   </div>
                   <div className="text-xs text-rose-700 dark:text-rose-200 sm:text-right">
-                    <span className="hidden sm:inline">À réaliser avant le {formattedDueDate}</span>
+                    <span className="hidden sm:inline">{dueLabel}</span>
                   </div>
                 </div>
                 {challengeKm && (
@@ -449,7 +470,7 @@ export function Dashboard({
                   </div>
                 )}
                 <div className="mt-2 text-xs text-rose-700 dark:text-rose-200 sm:hidden">
-                  À réaliser avant le {formattedDueDate}
+                  {dueLabel}
                 </div>
             </div>
           </Reveal>
