@@ -94,6 +94,7 @@ export function Dashboard({
   const isBotUser = Boolean(userInfo?.is_bot);
   const botCardType = userInfo?.bot_card_type || "";
   const isSeasonRange = String(range || "").startsWith("season:");
+  const isEventBot = isBotUser && botCardType === "evenement";
   const selectedSeasonKey = isSeasonRange ? String(range || "").split(":")[1] : null;
   const isActiveSeasonRange =
     isSeasonRange &&
@@ -511,7 +512,7 @@ export function Dashboard({
               />
             )}
 
-            {showMonthCardsOnlyWhenAllRange && (
+            {showMonthCardsOnlyWhenAllRange && !isEventBot && (
               <KpiChip
                 title="Total du mois"
                 subtitle={mode === "all" ? monthLabel : modeLabel}
@@ -534,7 +535,7 @@ export function Dashboard({
               />
             )}
 
-            {showMonthCardsOnlyWhenAllRange && (
+            {showMonthCardsOnlyWhenAllRange && !isEventBot && (
               <KpiChip
                 title="Séances ce mois-ci"
                 subtitle={mode === "all" ? monthLabel : modeLabel}
@@ -557,31 +558,33 @@ export function Dashboard({
               />
             )}
 
-            <KpiChip
-              title="Moyenne / séance"
-              subtitle={mode === "all" ? "Par sport" : modeLabel}
-              value={
-                mode === "all" ? (
-                  <div className="mt-1 flex justify-end gap-2 flex-wrap">
-                    <TypePill type="swim">
-                      {nf.format(stats.swimAvg)} <span className="opacity-80">m</span>
-                    </TypePill>
-                    <TypePill type="run">
-                      {nf.format(stats.runAvg)} <span className="opacity-80">m</span>
-                    </TypePill>
-                  </div>
-                ) : (
-                  <div className="text-right font-bold">
-                    <AnimatedNumber
-                      value={mode === "swim" ? stats.swimAvg : stats.runAvg}
-                      format={(n) => nf.format(Math.round(n))}
-                    />{" "}
-                    <span className="text-xs opacity-70">m</span>
-                  </div>
-                )
-              }
-              icon={<Gauge />}
-            />
+            {!isEventBot && (
+              <KpiChip
+                title="Moyenne / séance"
+                subtitle={mode === "all" ? "Par sport" : modeLabel}
+                value={
+                  mode === "all" ? (
+                    <div className="mt-1 flex justify-end gap-2 flex-wrap">
+                      <TypePill type="swim">
+                        {nf.format(stats.swimAvg)} <span className="opacity-80">m</span>
+                      </TypePill>
+                      <TypePill type="run">
+                        {nf.format(stats.runAvg)} <span className="opacity-80">m</span>
+                      </TypePill>
+                    </div>
+                  ) : (
+                    <div className="text-right font-bold">
+                      <AnimatedNumber
+                        value={mode === "swim" ? stats.swimAvg : stats.runAvg}
+                        format={(n) => nf.format(Math.round(n))}
+                      />{" "}
+                      <span className="text-xs opacity-70">m</span>
+                    </div>
+                  )
+                }
+                icon={<Gauge />}
+              />
+            )}
 
             {mode === "run" &&
               shoesLifeByRange &&
@@ -653,27 +656,29 @@ export function Dashboard({
               icon={<Calculator />}
             />
 
-            <KpiChip
-              title="Séances totales"
-              subtitle={mode === "all" ? "Total" : modeLabel}
-              value={
-                <div className="text-right">
-                  <div className="font-bold">
-                    <AnimatedNumber value={stats.totalN} format={(n) => nf.format(Math.round(n))} />{" "}
-                    {stats.totalN > 1 ? "Séances" : "Séance"}
-                  </div>
-                  {mode === "all" && (
-                    <div className="mt-1 flex justify-end gap-2 flex-wrap">
-                      <TypePill type="swim">{pluralize(stats.swimN, "Séance")}</TypePill>
-                      <TypePill type="run">{pluralize(stats.runN, "Séance")}</TypePill>
+            {!isEventBot && (
+              <KpiChip
+                title="Séances totales"
+                subtitle={mode === "all" ? "Total" : modeLabel}
+                value={
+                  <div className="text-right">
+                    <div className="font-bold">
+                      <AnimatedNumber value={stats.totalN} format={(n) => nf.format(Math.round(n))} />{" "}
+                      {stats.totalN > 1 ? "Séances" : "Séance"}
                     </div>
-                  )}
-                </div>
-              }
-              icon={<CalendarDays />}
-            />
+                    {mode === "all" && (
+                      <div className="mt-1 flex justify-end gap-2 flex-wrap">
+                        <TypePill type="swim">{pluralize(stats.swimN, "Séance")}</TypePill>
+                        <TypePill type="run">{pluralize(stats.runN, "Séance")}</TypePill>
+                      </div>
+                    )}
+                  </div>
+                }
+                icon={<CalendarDays />}
+              />
+            )}
 
-            {showCompareInline && (
+            {showCompareInline && !isEventBot && (
               <>
                 <KpiChip
                   title="Comparatif"
@@ -814,7 +819,7 @@ export function Dashboard({
             </div>
           </div>
 
-          {showMonthlyChart && !isSeasonRange && (
+          {showMonthlyChart && !isSeasonRange && !isEventBot && (
             <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
               <div className="flex items-center justify-between border-b px-4 py-3 dark:border-slate-700">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -832,7 +837,7 @@ export function Dashboard({
         </Reveal>
       </div>
 
-      {showCompareAbove && (
+      {showCompareAbove && !isEventBot && (
         <Reveal as="section" className="px-4 xl:px-8 pb-4">
           {comparePanel}
         </Reveal>
