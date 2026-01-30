@@ -39,6 +39,7 @@ export function GlobalDashboard({
   nfDecimal,
   onSelectUser,
   onOpenCards,
+  onOpenNewsArchive,
   isAdmin,
   isAuth,
   notifications = [],
@@ -46,60 +47,78 @@ export function GlobalDashboard({
   notificationsError = "",
   onRefreshNotifications,
   activeChallenge,
+  newsItems = [],
+  newsLoading = false,
+  newsError = "",
 }) {
-  const [newsImageReady, setNewsImageReady] = useState(false);
-  const [newsImageReady2, setNewsImageReady2] = useState(false);
-  const [newsImageReadySeason, setNewsImageReadySeason] = useState(false);
+  const [newsImageReadyMap, setNewsImageReadyMap] = useState({});
   const [showNotifInfo, setShowNotifInfo] = useState(false);
   const [showBotsInPodium, setShowBotsInPodium] = useState(true);
   const [notifAnchorRect] = useState(null);
   useEffect(() => {
-    const img = new Image();
-    const done = () => setNewsImageReady(true);
-    img.onload = done;
-    img.onerror = done;
-    img.src = "/news/adidas10k-2026.jpg";
-    if (img.complete) setNewsImageReady(true);
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, []);
+    let alive = true;
+    const next = {};
+    (newsItems || []).forEach((item) => {
+      if (!item?.image_url) return;
+      const img = new Image();
+      const done = () => {
+        if (!alive) return;
+        setNewsImageReadyMap((prev) => ({ ...prev, [item.id]: true }));
+      };
+      img.onload = done;
+      img.onerror = done;
+      img.src = item.image_url;
+      if (img.complete) next[item.id] = true;
+    });
+    if (Object.keys(next).length) {
+      setNewsImageReadyMap((prev) => ({ ...prev, ...next }));
+    }
+    return () => { alive = false; };
+  }, [newsItems]);
 
   const unreadNotifications = (notifications || []).filter(
     (n) => !n.read_at && (n.type === "challenge_start" || n.type === "event_start")
   );
   const hasUnreadNotif = unreadNotifications.length > 0;
 
-  useEffect(() => {
-    const img = new Image();
-    const done = () => setNewsImageReady2(true);
-    img.onload = done;
-    img.onerror = done;
-    img.src = "/news/mcdo5-10k-2026.jpg";
-    if (img.complete) setNewsImageReady2(true);
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, []);
-  useEffect(() => {
-    const img = new Image();
-    const done = () => setNewsImageReadySeason(true);
-    img.onload = done;
-    img.onerror = done;
-    img.src = "/news/saison0-2026.jpg";
-    if (img.complete) setNewsImageReadySeason(true);
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, []);
+  const formatEventDate = (value) => {
+    if (!value) return "";
+    const d = dayjs(value);
+    if (!d.isValid()) return value;
+    const formatted = d.locale("fr").format("dddd D MMMM YYYY");
+    const parts = formatted.split(" ");
+    if (parts.length < 3) return formatted;
+    const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+    const day = cap(parts[0]);
+    const month = cap(parts[2]);
+    return `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`.trim();
+  };
   const subtitle = (() => {
     if (mode === "all") return rangeLabel;
     const parts = [rangeLabel, modeLabel].filter(Boolean);
     return parts.join(" · ");
   })();
+  const latestNews = useMemo(() => {
+    const items = newsItems || [];
+    if (!items.length) return [];
+    const withDates = items
+      .map((item, idx) => ({
+        item,
+        idx,
+        ts: dayjs(item.event_date).isValid() ? dayjs(item.event_date).startOf("day").valueOf() : null,
+      }))
+      .sort((a, b) => {
+        if (a.ts === null && b.ts === null) return a.idx - b.idx;
+        if (a.ts === null) return 1;
+        if (b.ts === null) return -1;
+        return a.ts - b.ts;
+      });
+    const today = dayjs().startOf("day").valueOf();
+    const upcoming = withDates.filter((n) => n.ts !== null && n.ts >= today).map((n) => n.item);
+    if (upcoming.length >= 2) return upcoming.slice(0, 2);
+    const fallback = withDates.map((n) => n.item).filter((it) => !upcoming.includes(it));
+    return [...upcoming, ...fallback].slice(0, 2);
+  }, [newsItems]);
   const hasBotsInRanking = useMemo(
     () => users.some((u) => u?.is_bot && (totalsByUser?.[u.id] || 0) > 0),
     [users, totalsByUser]
@@ -367,86 +386,85 @@ export function GlobalDashboard({
               <div className="flex w-full justify-end md:w-auto md:justify-start">
                 <button
                   type="button"
+                  onClick={() => onOpenNewsArchive?.()}
+                  disabled={!newsItems.length}
                   className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
                 >
-                  Archives
+                  Toutes les news
                 </button>
               </div>
             </div>
             <div className="p-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div
-                  className="relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm dark:border-slate-700 dark:text-slate-100"
-                  style={{
-                    backgroundImage: newsImageReadySeason ? "url(/news/saison0-2026.jpg)" : undefined,
-                    backgroundSize: "cover",
-                    backgroundPosition: "50% 10%",
-                  }}
-                >
-                  {!newsImageReadySeason && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/60">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400/70 border-t-transparent" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-slate-950/30" aria-hidden="true" />
-                  <div className="relative text-slate-100">
-                    <div className="text-sm font-semibold uppercase tracking-wide text-slate-100/80">
-                      Événement Saison 0
-                    </div>
-                    <div className="mt-1 text-xl font-semibold">
-                      Lundi 2 février 2026 <span className="italic font-normal"></span>
-                    </div>
-                  </div>
+              {newsLoading ? (
+                <div className="text-sm text-slate-600 dark:text-slate-300">Chargement…</div>
+              ) : newsError ? (
+                <div className="text-sm text-rose-600 dark:text-rose-300">Erreur: {newsError}</div>
+              ) : !latestNews.length ? (
+                <div className="text-sm text-slate-600 dark:text-slate-300">
+                  Aucune news pour le moment.
                 </div>
-              <a
-                href="https://www.adidas10kparis.fr/fr/participer/s-inscrire"
-                target="_blank"
-                rel="noreferrer"
-                className="relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm transition hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 dark:border-slate-700 dark:text-slate-100"
-                style={{
-                  backgroundImage: newsImageReady ? "url(/news/adidas10k-2026.jpg)" : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "50% 20%",
-                }}
-              >
-                {!newsImageReady && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/60">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400/70 border-t-transparent" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-slate-950/30" aria-hidden="true" />
-                <div className="relative text-slate-100">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-slate-100/80">10k Paris Adidas</div>
-                  <div className="mt-1 text-xl font-semibold">
-                    Dimanche 7 Juin 2026 <span className="italic font-normal">(Paris)</span>
-                  </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {latestNews.map((item) => {
+                    const ready = !!newsImageReadyMap[item.id];
+                    const content = (
+                      <>
+                        {!ready && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/60">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400/70 border-t-transparent" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-slate-950/30" aria-hidden="true" />
+                        <div className="absolute inset-0 flex flex-col px-5 pt-5 pb-5 text-slate-100">
+                          <div className="text-sm font-semibold uppercase tracking-wide text-slate-100/80">
+                            {item.title}
+                          </div>
+                          <div className="mt-1 text-xl font-semibold">
+                            {formatEventDate(item.event_date)}{" "}
+                            {item.city ? <span className="italic font-normal">({item.city})</span> : null}
+                          </div>
+                          {item.subtitle ? (
+                            <div className="mt-auto text-sm font-semibold italic text-slate-100/90">
+                              « {item.subtitle} »
+                            </div>
+                          ) : null}
+                        </div>
+                      </>
+                    );
+                    const focusY = Number.isFinite(Number(item.image_focus_y))
+                      ? Math.min(100, Math.max(0, Number(item.image_focus_y)))
+                      : null;
+                    const card = (
+                      <div className="group relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm dark:border-slate-700 dark:text-slate-100">
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            backgroundImage: ready ? `url(${item.image_url})` : undefined,
+                            backgroundSize: "cover",
+                            backgroundPosition: focusY !== null ? `50% ${focusY}%` : "50% 50%",
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/30 to-slate-950/60" aria-hidden="true" />
+                        {content}
+                      </div>
+                    );
+                    if (item.link_url) {
+                      return (
+                        <a
+                          key={item.id}
+                          href={item.link_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="transition hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        >
+                          {card}
+                        </a>
+                      );
+                    }
+                    return <div key={item.id}>{card}</div>;
+                  })}
                 </div>
-            </a>
-              {/* <a
-                href="https://www.protiming.fr/runnings/detail/7930"
-                target="_blank"
-                rel="noreferrer"
-                className="relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm transition hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 dark:border-slate-700 dark:text-slate-100"
-                style={{
-                  backgroundImage: newsImageReady2 ? "url(/news/mcdo5-10k-2026.jpg)" : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "50% 20%",
-                }}
-              >
-                {!newsImageReady2 && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/60">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400/70 border-t-transparent" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-slate-950/30" aria-hidden="true" />
-                <div className="relative text-slate-100">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-slate-100/80">La Foulée des Sacres by Mc Donalds 5/10k</div>
-                  <div className="mt-1 text-xl font-semibold">
-                    Dimanche 14 Juin 2026 <span className="italic font-normal">(Reims)</span>
-                  </div>
-                </div>
-              </a> */}
-              </div>
+              )}
             </div>
           </div>
         </Reveal>

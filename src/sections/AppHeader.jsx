@@ -111,12 +111,43 @@ function RangeSelect({ value, onChange, options }) {
   );
 }
 
+function NewsFilterSwitch({ value, onChange }) {
+  const items = [
+    { key: "all", label: "Tous" },
+    { key: "future", label: "Futurs" },
+    { key: "past", label: "Passés" },
+  ];
+
+  return (
+    <div className="inline-flex rounded-xl bg-slate-100 p-1 ring-1 ring-slate-200 dark:bg-slate-800/70 dark:ring-slate-700">
+      {items.map((it) => {
+        const active = value === it.key;
+        return (
+          <button
+            key={it.key}
+            onClick={() => onChange(it.key)}
+            className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition
+              ${
+                active
+                  ? "bg-white text-slate-900 shadow ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+          >
+            {it.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function AppHeader({
   range,
   mode,
   isAuth,
   showEditor = true,
   showFilters = true,
+  newsFilter = null,
   title,
   editorTargetName,
   loggedUserName,
@@ -125,6 +156,7 @@ export function AppHeader({
   onModeChange,
   onRangeChange,
   onBack,
+  onNewsFilterChange,
   cardsFilter,
   cardsExtraAction,
   cardsHideLockedAction,
@@ -307,6 +339,18 @@ export function AppHeader({
             {cardsUnlockedCounts.evenement || 0}/{cardsUnlockedCounts.evenementTotal || 0}{" "}
             <Newspaper size={14} aria-hidden="true" />
           </div>
+        </div>
+      )}
+
+      {newsFilter && (
+        <div className="flex items-center justify-end gap-2 xl:hidden w-full">
+          <NewsFilterSwitch value={newsFilter} onChange={onNewsFilterChange} />
+        </div>
+      )}
+
+      {newsFilter && (
+        <div className="hidden xl:flex items-center justify-end gap-3">
+          <NewsFilterSwitch value={newsFilter} onChange={onNewsFilterChange} />
         </div>
       )}
 

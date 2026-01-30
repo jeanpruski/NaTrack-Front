@@ -9,6 +9,7 @@ import { AppHeader } from "./sections/AppHeader";
 import { EditModal } from "./sections/EditModal";
 import { Dashboard } from "./sections/Dashboard";
 import { GlobalDashboard } from "./sections/GlobalDashboard";
+import { NewsArchive } from "./sections/NewsArchive";
 import { LoadingScreen } from "./sections/LoadingScreen";
 import { BusyOverlay } from "./sections/BusyOverlay";
 import { UserCardsPage } from "./sections/UserCardsPage";
@@ -43,6 +44,7 @@ const readRouteState = () => {
   const userMatch = path.match(/^\/user\/([^/]+)\/?$/);
   if (userMatch) return { type: "user", slug: decodeURIComponent(userMatch[1]) };
   if (path.match(/^\/cards\/?$/)) return { type: "cards", slug: null };
+  if (path.match(/^\/events\/?$/)) return { type: "news", slug: null };
   return { type: "root", slug: null };
 };
 
@@ -89,6 +91,7 @@ const buildUserPath = (slug, withCard = false, modeValue = null, rangeValue = nu
   `/user/${encodeURIComponent(slug)}${buildSearchParams({ withCard, modeValue, rangeValue })}`;
 const buildCardsPath = (modeValue = null, rangeValue = null) =>
   `/cards${buildSearchParams({ withCard: false, modeValue, rangeValue })}`;
+const buildNewsPath = () => "/events";
 
 /* =========================
    App principale
@@ -148,6 +151,11 @@ export default function App() {
   const [range, setRange] = useState(() => readFilterParams().range || getInitialRange()); // all | month | 6m | 3m | 2026 | 2025
   const [routeState, setRouteState] = useState(readRouteState);
   const [userCardOpen, setUserCardOpen] = useState(readCardParam);
+  const [showNewsArchive, setShowNewsArchive] = useState(false);
+  const [newsItems, setNewsItems] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState("");
+  const [newsFilter, setNewsFilter] = useState("all");
 
   const [loadingPhase, setLoadingPhase] = useState("loading"); // loading | fading | done
   const [error, setError] = useState("");
@@ -205,6 +213,26 @@ export default function App() {
       } catch {
         if (!alive) return;
         setUsers([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    setNewsLoading(true);
+    setNewsError("");
+    (async () => {
+      try {
+        const data = await apiGet("/news");
+        if (!alive) return;
+        setNewsItems(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (!alive) return;
+        setNewsItems([]);
+        setNewsError(e?.message || "Erreur news");
+      } finally {
+        if (alive) setNewsLoading(false);
       }
     })();
     return () => { alive = false; };
@@ -346,8 +374,12 @@ export default function App() {
   }, [isAuth, mode, range]);
 
   useEffect(() => {
-    updateUrlFilters(mode, range);
-  }, [mode, range]);
+    if (showNewsArchive) {
+      updateUrlFilters(null, null, false);
+      return;
+    }
+    updateUrlFilters(mode, range, true);
+  }, [mode, range, showNewsArchive]);
 
   useEffect(() => {
     if (!isAuth) {
@@ -588,6 +620,7 @@ export default function App() {
       setShowCardsPage(false);
       setSelectedUser(null);
       setUserCardOpen(false);
+      setShowNewsArchive(false);
       if ((window.location.pathname || "/") !== "/") {
         window.history.replaceState({}, "", "/");
         setRouteState({ type: "root", slug: null });
@@ -728,6 +761,7 @@ export default function App() {
       if (!isAuth) {
         setShowCardsPage(false);
         setSelectedUser(null);
+        setShowNewsArchive(false);
         setUserCardOpen(false);
         if ((window.location.pathname || "/") !== "/") {
           window.history.replaceState({}, "", "/");
@@ -737,7 +771,16 @@ export default function App() {
       }
       if (!showCardsPage) setShowCardsPage(true);
       if (selectedUser) setSelectedUser(null);
+      if (showNewsArchive) setShowNewsArchive(false);
       if (userCardOpen) setUserCardOpen(false);
+      return;
+    }
+
+    if (routeState.type === "news") {
+      if (showCardsPage) setShowCardsPage(false);
+      if (selectedUser) setSelectedUser(null);
+      if (userCardOpen) setUserCardOpen(false);
+      if (!showNewsArchive) setShowNewsArchive(true);
       return;
     }
 
@@ -754,9 +797,11 @@ export default function App() {
           setSelectedUser(match);
         }
         if (showCardsPage) setShowCardsPage(false);
+        if (showNewsArchive) setShowNewsArchive(false);
         return;
       }
       setSelectedUser(null);
+      if (showNewsArchive) setShowNewsArchive(false);
       if (userCardOpen) setUserCardOpen(false);
       if ((window.location.pathname || "/") !== "/") {
         window.history.replaceState({}, "", "/");
@@ -766,9 +811,22 @@ export default function App() {
     }
 
     if (userCardOpen) setUserCardOpen(false);
-  }, [routeState, userBySlug, usersForRouting.length, selectedUser, showCardsPage, isAuth, userCardOpen]);
+    if (showNewsArchive) setShowNewsArchive(false);
+  }, [routeState, userBySlug, usersForRouting.length, selectedUser, showCardsPage, showNewsArchive, isAuth, userCardOpen]);
 
   useEffect(() => {
+    if (showNewsArchive) {
+      const path = buildNewsPath();
+      const current = `${window.location.pathname || "/"}${window.location.search || ""}`;
+      if (current !== path) {
+        window.history.pushState({}, "", path);
+        setRouteState({ type: "news", slug: null });
+      }
+      return;
+    }
+    if (routeState.type === "news") {
+      return;
+    }
     if (showCardsPage) {
       if (!isAuth) {
         setShowCardsPage(false);
@@ -801,7 +859,7 @@ export default function App() {
       window.history.pushState({}, "", "/");
       setRouteState({ type: "root", slug: null });
     }
-  }, [showCardsPage, selectedUser, isAuth, userCardOpen, routeState.type, usersForRouting.length]);
+  }, [showCardsPage, showNewsArchive, selectedUser, isAuth, userCardOpen, routeState.type, usersForRouting.length, mode, range]);
 
   const userRankInfo = useMemo(() => {
     if (!selectedUserInfo || !users.length) return null;
@@ -1288,13 +1346,18 @@ export default function App() {
     };
   }, [selectedUserInfo?.id, isAuth, authToken, user?.id, cardsUnlockedCounts]);
 
-  const updateUrlFilters = (nextMode, nextRange) => {
+  const updateUrlFilters = (nextMode, nextRange, includeFilters = true) => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (nextMode) params.set("mode", nextMode);
-    else params.delete("mode");
-    if (nextRange) params.set("range", nextRange);
-    else params.delete("range");
+    if (includeFilters) {
+      if (nextMode) params.set("mode", nextMode);
+      else params.delete("mode");
+      if (nextRange) params.set("range", nextRange);
+      else params.delete("range");
+    } else {
+      params.delete("mode");
+      params.delete("range");
+    }
     if (userCardOpen) params.set("card", "open");
     else params.delete("card");
     const search = params.toString();
@@ -1305,12 +1368,12 @@ export default function App() {
   const handleRangeChange = (nextRange) => {
     rangeTouchedRef.current = true;
     setRange(nextRange);
-    updateUrlFilters(mode, nextRange);
+    updateUrlFilters(mode, nextRange, !showNewsArchive);
   };
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
-    updateUrlFilters(nextMode, range);
+    updateUrlFilters(nextMode, range, !showNewsArchive);
   };
 
   if (loadingPhase !== "done" || FORCE_LOADING) {
@@ -1331,6 +1394,12 @@ export default function App() {
       if (scrollTopSoonRef.current) scrollTopSoonRef.current();
       return;
     }
+    if (showNewsArchive) {
+      setShowNewsArchive(false);
+      setRouteState({ type: "root", slug: null });
+      if (scrollTopSoonRef.current) scrollTopSoonRef.current();
+      return;
+    }
     if (selectedUser) {
       setRouteState({ type: "root", slug: null });
       setSelectedUser(null);
@@ -1339,7 +1408,7 @@ export default function App() {
   };
 
   const onSwipeStart = (e) => {
-    if (!showCardsPage && !selectedUser) return;
+    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
     const touch = e.touches?.[0];
     if (!touch) return;
     swipeRef.current = {
@@ -1353,7 +1422,7 @@ export default function App() {
   };
 
   const onSwipeMove = (e) => {
-    if (!showCardsPage && !selectedUser) return;
+    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
     const touch = e.touches?.[0];
     if (!touch) return;
     const dx = touch.clientX - swipeRef.current.x;
@@ -1366,7 +1435,7 @@ export default function App() {
   };
 
   const onSwipeEnd = () => {
-    if (!showCardsPage && !selectedUser) return;
+    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
     const { x, y, lastX, lastY, t, moved } = swipeRef.current || {};
     if (!moved) return;
     const dt = Date.now() - (t || 0);
@@ -1409,8 +1478,10 @@ export default function App() {
           range={range}
           mode={mode}
           isAuth={isAuth}
-          showEditor={!showCardsPage && showEditorButton}
-          showFilters={!showCardsPage}
+          showEditor={!showCardsPage && !showNewsArchive && showEditorButton}
+          showFilters={!showCardsPage && !showNewsArchive}
+          newsFilter={showNewsArchive ? newsFilter : null}
+          onNewsFilterChange={setNewsFilter}
           editorIcon={isGlobalView ? "user" : "pencil"}
           rangeOptions={rangeOptions}
           cardsFilter={
@@ -1451,7 +1522,7 @@ export default function App() {
           }}
           onModeChange={handleModeChange}
           onRangeChange={handleRangeChange}
-          onBack={showCardsPage || !isGlobalView ? handleBack : null}
+          onBack={showCardsPage || showNewsArchive || !isGlobalView ? handleBack : null}
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
@@ -1535,7 +1606,9 @@ export default function App() {
             />
 
             {isGlobalView ? (
-              showCardsPage ? (
+            showNewsArchive ? (
+                <NewsArchive newsItems={newsItems} loading={newsLoading} error={newsError} filter={newsFilter} />
+              ) : showCardsPage ? (
                 <UserCardsPage
                   users={users}
                   nfDecimal={nfDecimal}
@@ -1557,28 +1630,35 @@ export default function App() {
                   }}
                 />
               ) : (
-              <GlobalDashboard
-                rangeLabel={rangeLabel}
-                modeLabel={modeLabel}
-                mode={mode}
-                users={globalUsers}
-                allUsers={usersForRouting}
-                totalsByUser={monthTotalsByUser}
-                sessions={globalShownSessions}
-                nfDecimal={nfDecimal}
-                onSelectUser={handleSelectUser}
-                onOpenCards={() => {
-                  setShowCardsPage(true);
-                  setRouteState({ type: "cards", slug: null });
-                }}
-                isAdmin={isAdmin}
-                isAuth={isAuth}
-                notifications={notifications}
-                notificationsLoading={notificationsLoading}
-                notificationsError={notificationsError}
-                onRefreshNotifications={refreshNotifications}
-                activeChallenge={activeChallenge}
-              />
+                <GlobalDashboard
+                  rangeLabel={rangeLabel}
+                  modeLabel={modeLabel}
+                  mode={mode}
+                  users={globalUsers}
+                  allUsers={usersForRouting}
+                  totalsByUser={monthTotalsByUser}
+                  sessions={globalShownSessions}
+                  nfDecimal={nfDecimal}
+                  onSelectUser={handleSelectUser}
+                  onOpenCards={() => {
+                    setShowCardsPage(true);
+                    setRouteState({ type: "cards", slug: null });
+                  }}
+                  onOpenNewsArchive={() => {
+                    setShowNewsArchive(true);
+                    setRouteState({ type: "news", slug: null });
+                  }}
+                  isAdmin={isAdmin}
+                  isAuth={isAuth}
+                  notifications={notifications}
+                  notificationsLoading={notificationsLoading}
+                  notificationsError={notificationsError}
+                  onRefreshNotifications={refreshNotifications}
+                  activeChallenge={activeChallenge}
+                  newsItems={newsItems}
+                  newsLoading={newsLoading}
+                  newsError={newsError}
+                />
               )
             ) : (
                 <Dashboard
