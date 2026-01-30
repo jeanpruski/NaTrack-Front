@@ -108,7 +108,7 @@ export function NewsArchive({ newsItems = [], loading = false, error = "", filte
                           {item.city ? <span className="italic font-normal">({item.city})</span> : null}
                         </div>
                         {item.subtitle ? (
-                          <div className="mt-auto text-sm font-semibold italic text-slate-100/90">
+                          <div className="mt-auto text-sm font-medium italic text-slate-100/80">
                             « {item.subtitle} »
                           </div>
                         ) : null}
@@ -119,9 +119,15 @@ export function NewsArchive({ newsItems = [], loading = false, error = "", filte
                     ? Math.min(100, Math.max(0, Number(item.image_focus_y)))
                     : null;
                   const card = (
-                    <div className="group relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm dark:border-slate-700 dark:text-slate-100">
+                    <div
+                      className={`group relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 px-5 pt-5 pb-10 text-slate-900 shadow-sm dark:border-slate-700 dark:text-slate-100 ${
+                        item.link_url ? "cursor-pointer" : "cursor-default"
+                      }`}
+                    >
                       <div
-                        className="absolute inset-0"
+                        className={`absolute inset-0 ${
+                          item.link_url ? "transition-transform duration-700 ease-out group-hover:scale-[1.03]" : ""
+                        }`}
                         style={{
                           backgroundImage: ready ? `url(${item.image_url})` : undefined,
                           backgroundSize: "cover",
