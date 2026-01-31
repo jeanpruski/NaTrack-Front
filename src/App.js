@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "dayjs/locale/fr";
 import { v4 as uuidv4 } from "uuid";
-import { Newspaper, Sparkles, Swords, Trophy } from "lucide-react";
+import { Check, Newspaper, Sparkles, Swords, Trophy } from "lucide-react";
 import { AppHeader } from "./sections/AppHeader";
 import { EditModal } from "./sections/EditModal";
 import { Dashboard } from "./sections/Dashboard";
@@ -15,7 +15,6 @@ import { BusyOverlay } from "./sections/BusyOverlay";
 import { UserCardsPage } from "./sections/UserCardsPage";
 import { Toast } from "./components/Toast";
 import { InfoPopover } from "./components/InfoPopover";
-import { UserHoloCard } from "./components/UserHoloCard";
 import { useEditAuth } from "./hooks/useEditAuth";
 import { apiGet, apiJson } from "./utils/api";
 import { downloadCSV } from "./utils/downloadCSV";
@@ -107,6 +106,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [authTransition, setAuthTransition] = useState(false);
+  const [editModalInitialTab, setEditModalInitialTab] = useState("options");
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
@@ -509,21 +509,6 @@ export default function App() {
     activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
       ? `Saison ${activeSeasonInfo.season_number}`
       : null;
-  const victoryBotRankInfo = useMemo(() => {
-    if (!victoryInfo?.botId) return null;
-    const bots = (users || [])
-      .filter((u) => Boolean(u?.is_bot))
-      .slice()
-      .sort((a, b) => {
-        const aTime = new Date(a.created_at || 0).getTime();
-        const bTime = new Date(b.created_at || 0).getTime();
-        if (aTime !== bTime) return aTime - bTime;
-        return String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""));
-      });
-    const index = bots.findIndex((u) => String(u.id) === String(victoryInfo.botId));
-    if (index < 0) return null;
-    return { index: index + 1, total: bots.length };
-  }, [users, victoryInfo]);
   const seasonsSortedAsc = useMemo(() => {
     return [...(seasons || [])].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   }, [seasons]);
@@ -1422,6 +1407,29 @@ export default function App() {
     if (scrollTopSoonRef.current) scrollTopSoonRef.current();
   };
 
+  const handleOpenMyOptions = () => {
+    if (user) {
+      const slug = getUserSlug(user);
+      const matched =
+        usersForRouting.find((u) => String(u.id) === String(user.id)) ||
+        usersForRouting.find((u) => getUserSlug(u) === slug) ||
+        null;
+      setShowCardsPage(false);
+      setShowNewsArchive(false);
+      setUserCardOpen(false);
+      if (matched) {
+        setSelectedUser(matched);
+        if (slug) setRouteState({ type: "user", slug });
+      } else if (slug) {
+        setSelectedUser(user);
+        setRouteState({ type: "user", slug });
+      }
+      if (scrollTopSoonRef.current) scrollTopSoonRef.current();
+    }
+    setEditModalInitialTab("options");
+    setShowEditModal(true);
+  };
+
   const handleBack = () => {
     if (showCardsPage) {
       setShowCardsPage(false);
@@ -1554,6 +1562,7 @@ export default function App() {
               setSelectedUser(user);
               return;
             }
+            setEditModalInitialTab("options");
             setShowEditModal(true);
           }}
           onModeChange={handleModeChange}
@@ -1562,7 +1571,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.2
+            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.3
           </span>
         </div>
 
@@ -1592,45 +1601,56 @@ export default function App() {
               items={
                 victoryInfo
                   ? [
-                      <div key="victory" className="grid gap-5 -mt-3">
-                        <div className="text-center text-[26px] font-semibold text-slate-900 dark:text-slate-100">
-                          Victoire !
+                      <div key="victory" className="grid gap-5">
+                        <div className="flex items-center gap-3 px-2 pt-2">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
+                            <Trophy size={20} />
+                          </div>
+                          <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
+                            Victoire !
+                          </div>
                         </div>
-                        <div className="-mt-6 text-center text-lg text-slate-700 dark:text-slate-200">
-                          Tu as battu <strong>{victoryInfo.botName}</strong>
-                          {" "}•{" "}
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">
-                            {Number.isFinite(victoryInfo.actualKm) ? `${formatKmFixed(victoryInfo.actualKm)} km` : "—"}
-                          </span>
-                          {" "}vs{" "}
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">
-                            {Number.isFinite(victoryInfo.distanceKm) ? `${formatKmFixed(victoryInfo.distanceKm)} km` : "—"}
-                          </span>
-                        </div>
-                        <div className="flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setVictoryInfo(null);
-                              setSelectedUser(null);
-                              setUserCardOpen(false);
-                              setShowCardsPage(true);
-                              setRouteState({ type: "cards", slug: null });
-                            }}
-                            className="rounded-full border border-emerald-300/80 bg-emerald-100/80 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/50 dark:bg-emerald-400/10 dark:text-emerald-200"
-                          >
-                            Voir dans les cartes
-                          </button>
-                        </div>
-                        <div className="flex justify-center">
-                          <div className="w-full max-w-[360px]">
-                            <UserHoloCard
-                              user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
-                              nfDecimal={nfDecimal}
-                              showBotAverage
-                              minSpinnerMs={500}
-                              userRankInfo={victoryBotRankInfo}
-                            />
+                        <div className="px-2 pt-3 text-slate-700 dark:text-slate-200">
+                          <ul className="grid gap-2 text-sm sm:text-base">
+                            <li className="flex items-center gap-2">
+                              <Check size={18} className="text-emerald-500" />
+                              <span>
+                                Bot battu : <span className="font-semibold">{victoryInfo.botName}</span>
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check size={18} className="text-emerald-500" />
+                              <span>
+                                Ta distance :{" "}
+                                <span className="font-semibold">
+                                  {Number.isFinite(victoryInfo.actualKm) ? `${formatKmFixed(victoryInfo.actualKm)} km` : "—"}
+                                </span>
+                              </span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <Check size={18} className="text-emerald-500" />
+                              <span>
+                                Objectif :{" "}
+                                <span className="font-semibold">
+                                  {Number.isFinite(victoryInfo.distanceKm) ? `${formatKmFixed(victoryInfo.distanceKm)} km` : "—"}
+                                </span>
+                              </span>
+                            </li>
+                          </ul>
+                          <div className="mt-12 mb-12 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVictoryInfo(null);
+                                setSelectedUser(null);
+                                setUserCardOpen(false);
+                                setShowCardsPage(true);
+                                setRouteState({ type: "cards", slug: null });
+                              }}
+                              className="rounded-full border border-emerald-300/80 bg-emerald-100/80 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/50 dark:bg-emerald-400/10 dark:text-emerald-200"
+                            >
+                              Voir dans les cartes
+                            </button>
                           </div>
                         </div>
                       </div>,
@@ -1638,7 +1658,7 @@ export default function App() {
                   : []
               }
               fullWidth
-              maxWidth={1024}
+              maxWidth={720}
               anchorRect={null}
             />
 
@@ -1696,6 +1716,7 @@ export default function App() {
                   newsItems={newsItems}
                   newsLoading={newsLoading}
                   newsError={newsError}
+                  onOpenMyOptions={handleOpenMyOptions}
                 />
               )
             ) : (
@@ -1742,7 +1763,7 @@ export default function App() {
                 nfDecimal={nfDecimal}
               />
             )}
-            {isAdmin && (
+            {isAdmin && isGlobalView && (
               <div className="flex justify-end gap-2 px-4 xl:px-8">
                 <button
                   type="button"
@@ -1831,6 +1852,7 @@ export default function App() {
         onDelete={deleteSession}
         onExport={exportCSV}
         onImport={importCSV}
+        initialTab={editModalInitialTab}
       />
     </div>
   );

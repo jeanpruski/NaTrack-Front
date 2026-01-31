@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { Bell, BellRing, Bot, Medal, Newspaper, Swords, Trophy, User } from "lucide-react";
+import { Bell, BellRing, Bot, Check, Medal, Newspaper, Sparkles, Swords, Trophy, User } from "lucide-react";
 import { Reveal } from "../components/Reveal";
 import { InfoPopover } from "../components/InfoPopover";
-import { UserHoloCard } from "../components/UserHoloCard";
 import { formatKmFixed } from "../utils/appUtils";
 
 function buildMonthKeys(sessions) {
@@ -51,6 +50,7 @@ export function GlobalDashboard({
   newsItems = [],
   newsLoading = false,
   newsError = "",
+  onOpenMyOptions,
 }) {
   const [newsImageReadyMap, setNewsImageReadyMap] = useState({});
   const [showNotifInfo, setShowNotifInfo] = useState(false);
@@ -219,22 +219,68 @@ export function GlobalDashboard({
     cardNotification?.meta?.bot_id
       ? fullUsers.find((u) => String(u.id) === String(cardNotification.meta.bot_id))
       : null;
+  const cardNotifDetails = useMemo(() => {
+    if (!cardNotification) return null;
+    const body = cardNotification?.body || "";
+    const isEvent = cardNotification?.type === "event_start";
+    const botCardType = String(cardBot?.bot_card_type || activeChallenge?.type || "").toLowerCase();
+    const kind = isEvent ? "event" : botCardType === "rare" ? "rare" : "defi";
+    const prefix = kind === "event" ? "Evenment" : "Défi";
+    const challengeMatch = body.match(
+      /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) avant le (.+) pour gagner sa carte !$/i
+    );
+    const eventMatch = body.match(
+      /^Fais\s+([0-9.,\s]+)\s*km\s+aujourd'hui\s+pour\s+gagner\s+la\s+carte\s+(.+)$/i
+    );
+    const parseDistance = (raw) => {
+      if (!raw) return { label: null, value: null };
+      const num = Number.parseFloat(String(raw).toLowerCase().replace("km", "").replace(/\s+/g, "").replace(",", "."));
+      if (!Number.isFinite(num)) return { label: String(raw).trim(), value: null };
+      return { label: formatKmFixed(num), value: num };
+    };
+    let botName = cardBot?.name || activeChallenge?.bot_name || "Un bot";
+    let distanceLabel = null;
+    let dueLabel = null;
+    if (challengeMatch) {
+      botName = challengeMatch[1] || botName;
+      const parsed = parseDistance(challengeMatch[2]);
+      distanceLabel = parsed.label;
+      const rawDue = challengeMatch[3] || null;
+      const parsedDue = rawDue ? dayjs(rawDue) : null;
+      dueLabel = parsedDue && parsedDue.isValid() ? formatEventDate(parsedDue.format("YYYY-MM-DD")) : rawDue;
+    }
+    if (eventMatch) {
+      const parsed = parseDistance(eventMatch[1]);
+      distanceLabel = parsed.label;
+      botName = cardBot?.name || eventMatch[2] || botName;
+    }
+    if (!distanceLabel && Number.isFinite(activeChallenge?.target_distance_m)) {
+      distanceLabel = formatKmFixed(Number(activeChallenge.target_distance_m) / 1000);
+    }
+    if (!dueLabel && activeChallenge?.due_date && !isEvent) {
+      const formatted = formatEventDate(activeChallenge.due_date);
+      dueLabel = formatted || null;
+    }
+    if (!dueLabel && !isEvent) {
+      const baseDate = cardNotification?.created_at ? dayjs(cardNotification.created_at) : dayjs();
+      const fallback = baseDate.add(3, "day");
+      const formatted = formatEventDate(fallback.format("YYYY-MM-DD"));
+      dueLabel = formatted || null;
+    }
+    const distanceSuffix = isEvent ? "km aujourd'hui" : "km en une course";
+    const title = distanceLabel
+      ? `${prefix} ${botName} – ${distanceLabel} ${distanceSuffix}`
+      : `${prefix} ${botName}`;
+    const objective = distanceLabel ? `${distanceLabel} km minimum` : "Distance minimum";
+    return {
+      isEvent,
+      kind,
+      title,
+      objective,
+      dueLabel: isEvent ? "aujourd'hui" : dueLabel,
+    };
+  }, [cardNotification, cardBot, activeChallenge]);
   const showCardNotif = !!cardNotification && unreadNotifications.length === 1 && cardBot;
-  const botRankInfo = useMemo(() => {
-    if (!cardBot) return null;
-    const bots = fullUsers
-      .filter((u) => Boolean(u?.is_bot))
-      .slice()
-      .sort((a, b) => {
-        const aTime = new Date(a.created_at || 0).getTime();
-        const bTime = new Date(b.created_at || 0).getTime();
-        if (aTime !== bTime) return aTime - bTime;
-        return String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""));
-      });
-    const index = bots.findIndex((u) => String(u.id) === String(cardBot.id));
-    if (index < 0) return null;
-    return { index: index + 1, total: bots.length };
-  }, [users, cardBot]);
   const isAdminTestNotif = Array.isArray(adminNotifOverride) && adminNotifOverride.length > 0;
   const canCancelChallenge =
     !!onCancelChallenge &&
@@ -307,67 +353,54 @@ export function GlobalDashboard({
                     showCardNotif
                         ? [
                           <div key="card" className="grid gap-5">
-                            <div className="flex flex-col items-center gap-3 text-center">
-                              <div className="w-full text-2xl leading-snug text-slate-900 dark:text-slate-100">
-                                {(() => {
-                                  const body = cardNotification?.body;
-                                  if (!body) return `${cardBot?.name || "Un bot"} te défie à la course !`;
-                                  const challengeMatch = body.match(
-                                    /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) avant le (.+) pour gagner sa carte !$/i
-                                  );
-                                  if (challengeMatch) {
-                                    const botName = challengeMatch[1];
-                                    const distanceRaw = challengeMatch[2];
-                                    const distanceNum = Number.parseFloat(
-                                      String(distanceRaw).toLowerCase().replace("km", "").replace(/\s+/g, "").replace(",", ".")
-                                    );
-                                    const distanceLabel = Number.isFinite(distanceNum)
-                                      ? `${formatKmFixed(distanceNum)} km`
-                                      : distanceRaw;
-                                    const dateLabel = challengeMatch[3];
-                                    return (
-                                      <div>
-                                        <div className="text-[26px]">
-                                          <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold">{distanceLabel}</span> !</span>
-                                        </div>
-                                        <div className="text-[18px]">
-                                           Cours au moins cette distance en une session avant le{" "}
-                                          <span className="font-bold">{dateLabel}</span> pour gagner cette carte !
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                  const eventMatch = body.match(
-                                    /^Fais\s+([0-9.,\s]+)\s*km\s+aujourd'hui\s+pour\s+gagner\s+la\s+carte\s+(.+)$/i
-                                  );
-                                  if (eventMatch) {
-                                    const distanceRaw = eventMatch[1];
-                                    const distanceNum = Number.parseFloat(
-                                      String(distanceRaw).toLowerCase().replace("km", "").replace(/\s+/g, "").replace(",", ".")
-                                    );
-                                    const distanceLabel = Number.isFinite(distanceNum)
-                                      ? formatKmFixed(distanceNum)
-                                      : distanceRaw;
-                                    const cardName = eventMatch[2];
-                                    return (
-                                      <div>
-                                        <div className="text-[26px]">
-                                          Fais <span className="font-bold">{distanceLabel}</span> km aujourd'hui pour gagner la carte{" "}
-                                          <span className="font-bold">{cardName}</span>
-                                        </div>
-                                        <div className="text-[18px]">
-                                          Cours au moins cette distance en une session avant <span className="font-bold">demain</span> pour gagner cette carte !
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                  return body;
-                                })()}
+                            <div className="flex items-center gap-3 px-2 pt-2">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
+                                {cardNotifDetails?.kind === "rare" ? (
+                                  <Sparkles size={20} />
+                                ) : cardNotifDetails?.isEvent ? (
+                                  <Newspaper size={20} />
+                                ) : (
+                                  <Swords size={20} />
+                                )}
+                              </div>
+                              <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
+                                {cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`}
                               </div>
                             </div>
-                            <div className="grid gap-4">
-                              {canCancelAny && (
-                                <div className="flex justify-center">
+                            <div className="px-2 pt-3 text-slate-700 dark:text-slate-200">
+                              <ul className="grid gap-2 text-sm sm:text-base">
+                                <li className="flex items-center gap-2">
+                                  <Check size={18} className="text-emerald-500" />
+                                  <span>
+                                    Objectif : <span className="font-semibold">{cardNotifDetails?.objective || "Distance minimum"}</span>
+                                  </span>
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <Check size={18} className="text-emerald-500" />
+                                  <span>
+                                    En <span className="font-semibold">une seule</span> session
+                                  </span>
+                                </li>
+                                {cardNotifDetails?.dueLabel && (
+                                  <li className="flex items-center gap-2">
+                                    <Check size={18} className="text-emerald-500" />
+                                    <span>
+                                      {cardNotifDetails?.isEvent ? (
+                                        <>
+                                          A faire <span className="font-semibold">aujourd'hui</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          A faire avant le{" "}
+                                          <span className="font-semibold">{cardNotifDetails.dueLabel}</span>
+                                        </>
+                                      )}
+                                    </span>
+                                  </li>
+                                )}
+                              </ul>
+                              <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+                                {canCancelAny && (
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -383,31 +416,33 @@ export function GlobalDashboard({
                                   >
                                     {cardNotification?.type === "event_start" ? "Annuler l'événement" : "Annuler le défi"}
                                   </button>
-                                </div>
-                              )}
-                              <div className="flex justify-center">
-                                <div className="w-full max-w-[360px]">
-                              <UserHoloCard
-                                user={cardBot}
-                                nfDecimal={nfDecimal}
-                                showBotAverage
-                                minSpinnerMs={500}
-                                userRankInfo={botRankInfo}
-                              />
-                                </div>
+                                )}
+                                {onOpenMyOptions && isAuth && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (typeof window === "undefined") return;
+                                      onOpenMyOptions?.();
+                                      setShowNotifInfo(false);
+                                    }}
+                                    className="rounded-full border border-emerald-300/70 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-800 dark:border-emerald-400/60 dark:text-emerald-200"
+                                  >
+                                    {cardNotifDetails?.isEvent ? "Relever l'événement" : "Relever le défi"}
+                                  </button>
+                                )}
                               </div>
                               {cardNotification?.created_at && (
-                                <div className="text-right text-xs italic text-slate-400">
+                                <div className="mt-6 text-right text-xs text-slate-400 dark:text-slate-500">
                                   {(() => {
                                     const formatted = dayjs(cardNotification.created_at)
                                       .locale("fr")
-                                      .format("dddd D MMMM YYYY à HH:mm");
+                                      .format("dddd D MMMM YYYY");
                                     const parts = formatted.split(" ");
-                                    if (parts.length < 5) return formatted;
+                                    if (parts.length < 3) return formatted;
                                     const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
                                     const day = cap(parts[0]);
                                     const month = cap(parts[2]);
-                                    return `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`;
+                                    return `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`.trim();
                                   })()}
                                 </div>
                               )}
@@ -439,7 +474,7 @@ export function GlobalDashboard({
                             : []
                   }
                   fullWidth
-                  maxWidth={1024}
+                  maxWidth={720}
                   anchorRect={null}
                   offsetY={-15}
                   offsetYMobile={0}

@@ -20,6 +20,7 @@ export function EditModal({
   onExport,
   onImport,
   isAdmin,
+  initialTab = "options",
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,8 +33,10 @@ export function EditModal({
       setPassword("");
       setErr("");
       setTab("options");
+      return;
     }
-  }, [open]);
+    setTab(initialTab || "options");
+  }, [open, initialTab]);
 
   if (!open) return null;
 
