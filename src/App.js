@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "dayjs/locale/fr";
 import { v4 as uuidv4 } from "uuid";
-import { Swords } from "lucide-react";
+import { Newspaper, Sparkles, Swords, Trophy } from "lucide-react";
 import { AppHeader } from "./sections/AppHeader";
 import { EditModal } from "./sections/EditModal";
 import { Dashboard } from "./sections/Dashboard";
@@ -118,8 +118,10 @@ export default function App() {
   const prevUserIdRef = useRef(user?.id || null);
   const authTransitionRef = useRef(isAuth);
   const authTransitionTimerRef = useRef(null);
+  const initialFiltersRef = useRef(readFilterParams());
   const loginRedirectRef = useRef(isAuth);
   const rangeTouchedRef = useRef(false);
+  const filtersTouchedRef = useRef(false);
   const forceHomeRef = useRef(false);
   const swipeRef = useRef({ x: 0, y: 0, t: 0, moved: false });
   const didInitHistoryRef = useRef(false);
@@ -155,7 +157,7 @@ export default function App() {
   const [newsItems, setNewsItems] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState("");
-  const [newsFilter, setNewsFilter] = useState("all");
+  const [newsFilter, setNewsFilter] = useState("future");
 
   const [loadingPhase, setLoadingPhase] = useState("loading"); // loading | fading | done
   const [error, setError] = useState("");
@@ -336,6 +338,20 @@ export default function App() {
       setActiveChallenge(null);
     }
   };
+  const cancelChallenge = async () => {
+    if (!isAuth || !authToken) return;
+    try {
+      await withBusy(async () => {
+        await apiJson("POST", "/me/challenge/cancel", null, authToken);
+      });
+      showToast("Défi annulé");
+    } catch (e) {
+      showToast("Impossible d'annuler le défi");
+    } finally {
+      refreshNotifications();
+      refreshChallenge();
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -378,7 +394,9 @@ export default function App() {
       updateUrlFilters(null, null, false);
       return;
     }
-    updateUrlFilters(mode, range, true);
+    const initial = initialFiltersRef.current;
+    const shouldSyncFilters = filtersTouchedRef.current || initial.mode || initial.range;
+    updateUrlFilters(mode, range, shouldSyncFilters);
   }, [mode, range, showNewsArchive]);
 
   useEffect(() => {
@@ -491,6 +509,21 @@ export default function App() {
     activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
       ? `Saison ${activeSeasonInfo.season_number}`
       : null;
+  const victoryBotRankInfo = useMemo(() => {
+    if (!victoryInfo?.botId) return null;
+    const bots = (users || [])
+      .filter((u) => Boolean(u?.is_bot))
+      .slice()
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at || 0).getTime();
+        const bTime = new Date(b.created_at || 0).getTime();
+        if (aTime !== bTime) return aTime - bTime;
+        return String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""));
+      });
+    const index = bots.findIndex((u) => String(u.id) === String(victoryInfo.botId));
+    if (index < 0) return null;
+    return { index: index + 1, total: bots.length };
+  }, [users, victoryInfo]);
   const seasonsSortedAsc = useMemo(() => {
     return [...(seasons || [])].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   }, [seasons]);
@@ -1367,11 +1400,13 @@ export default function App() {
 
   const handleRangeChange = (nextRange) => {
     rangeTouchedRef.current = true;
+    filtersTouchedRef.current = true;
     setRange(nextRange);
     updateUrlFilters(mode, nextRange, !showNewsArchive);
   };
 
   const handleModeChange = (nextMode) => {
+    filtersTouchedRef.current = true;
     setMode(nextMode);
     updateUrlFilters(nextMode, range, !showNewsArchive);
   };
@@ -1526,7 +1561,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.1
+            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.2
           </span>
         </div>
 
@@ -1572,16 +1607,6 @@ export default function App() {
                           </span>
                         </div>
                         <div className="flex justify-center">
-                          <div className="w-full max-w-[360px]">
-                            <UserHoloCard
-                              user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
-                              nfDecimal={nfDecimal}
-                              showBotAverage
-                              minSpinnerMs={500}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-center">
                           <button
                             type="button"
                             onClick={() => {
@@ -1595,6 +1620,17 @@ export default function App() {
                           >
                             Voir dans les cartes
                           </button>
+                        </div>
+                        <div className="flex justify-center">
+                          <div className="w-full max-w-[360px]">
+                            <UserHoloCard
+                              user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
+                              nfDecimal={nfDecimal}
+                              showBotAverage
+                              minSpinnerMs={500}
+                              userRankInfo={victoryBotRankInfo}
+                            />
+                          </div>
                         </div>
                       </div>,
                     ]
@@ -1648,6 +1684,7 @@ export default function App() {
                     setShowNewsArchive(true);
                     setRouteState({ type: "news", slug: null });
                   }}
+                  onCancelChallenge={cancelChallenge}
                   isAdmin={isAdmin}
                   isAuth={isAuth}
                   notifications={notifications}
@@ -1669,6 +1706,7 @@ export default function App() {
                   rangeLabel={rangeLabel}
                   userName={headerTitle}
                   userInfo={selectedUserInfo}
+                  allUsers={usersForRouting}
                   activeSeasonNumber={activeSeasonInfo?.season_number ?? null}
                   seasonStartDate={seasonCalendarStartDate}
                   seasonEndDate={seasonCalendarEndDate}
@@ -1702,6 +1740,69 @@ export default function App() {
                 nf={nf}
                 nfDecimal={nfDecimal}
               />
+            )}
+            {isAdmin && (
+              <div className="flex justify-end gap-2 px-4 xl:px-8">
+                <button
+                  type="button"
+                  aria-label="Test notif défi"
+                  title="Test notif défi"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.dispatchEvent(new CustomEvent("admin:open-notifs", { detail: { kind: "defi" } }));
+                    }
+                  }}
+                  className="rounded-full border border-slate-200/80 bg-white/80 p-2 text-slate-700 shadow-sm hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <Swords size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Test notif rare"
+                  title="Test notif rare"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.dispatchEvent(new CustomEvent("admin:open-notifs", { detail: { kind: "rare" } }));
+                    }
+                  }}
+                  className="rounded-full border border-slate-200/80 bg-white/80 p-2 text-slate-700 shadow-sm hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <Sparkles size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Test notif event"
+                  title="Test notif event"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.dispatchEvent(new CustomEvent("admin:open-notifs", { detail: { kind: "event" } }));
+                    }
+                  }}
+                  className="rounded-full border border-slate-200/80 bg-white/80 p-2 text-slate-700 shadow-sm hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <Newspaper size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Test popup victoire"
+                  title="Test popup victoire"
+                  onClick={() => {
+                    const bot =
+                      (users || []).find((u) => Boolean(u?.is_bot)) ||
+                      (users || [])[0] ||
+                      { id: "test-bot", name: "Bot test", is_bot: true };
+                    setVictoryInfo({
+                      botId: bot.id,
+                      botName: bot.name || "Bot test",
+                      distanceKm: 5,
+                      actualKm: 6.2,
+                    });
+                  }}
+                  className="rounded-full border border-slate-200/80 bg-white/80 p-2 text-slate-700 shadow-sm hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <Trophy size={16} />
+                </button>
+              </div>
             )}
           </div>
         </main>

@@ -113,9 +113,9 @@ function RangeSelect({ value, onChange, options }) {
 
 function NewsFilterSwitch({ value, onChange }) {
   const items = [
-    { key: "all", label: "Tous" },
     { key: "future", label: "Futurs" },
     { key: "past", label: "Passés" },
+    { key: "all", label: "Tous" },
   ];
 
   return (

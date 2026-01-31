@@ -40,6 +40,7 @@ export function GlobalDashboard({
   onSelectUser,
   onOpenCards,
   onOpenNewsArchive,
+  onCancelChallenge,
   isAdmin,
   isAuth,
   notifications = [],
@@ -53,8 +54,54 @@ export function GlobalDashboard({
 }) {
   const [newsImageReadyMap, setNewsImageReadyMap] = useState({});
   const [showNotifInfo, setShowNotifInfo] = useState(false);
-  const [showBotsInPodium, setShowBotsInPodium] = useState(true);
+  const [showBotsInPodium, setShowBotsInPodium] = useState(false);
   const [notifAnchorRect] = useState(null);
+  const [adminNotifOverride, setAdminNotifOverride] = useState(null);
+  const buildAdminNotification = (kind) => {
+    const pool = (allUsers && allUsers.length ? allUsers : users) || [];
+    const bots = pool.filter((u) => Boolean(u?.is_bot));
+    if (!bots.length) return null;
+    const pickBot = (type) =>
+      bots.find((b) => String(b?.bot_card_type || "").toLowerCase() === type) || bots[0];
+    const bot =
+      kind === "rare"
+        ? pickBot("rare")
+        : kind === "event"
+          ? pickBot("evenement")
+          : pickBot("defi");
+    const distance = kind === "rare" ? 12 : kind === "event" ? 5 : 8;
+    const dateLabel = dayjs().locale("fr").format("D MMMM YYYY");
+    const body =
+      kind === "event"
+        ? `Fais ${distance} km aujourd'hui pour gagner la carte ${bot.name}.`
+        : `[${bot.name}] te défie à la course, cours ${distance} km avant le ${dateLabel} pour gagner sa carte !`;
+    return {
+      id: `test-${kind}-${Date.now()}`,
+      type: kind === "event" ? "event_start" : "challenge_start",
+      title: kind === "event" ? "Événement du jour" : "Nouveau défi",
+      body,
+      meta: { bot_id: bot.id, challenge_id: `test-${kind}` },
+      created_at: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+      read_at: null,
+    };
+  };
+  useEffect(() => {
+    const openFromAdmin = (evt) => {
+      const kind = evt?.detail?.kind || "defi";
+      const mock = buildAdminNotification(kind);
+      if (!mock) return;
+      setAdminNotifOverride([mock]);
+      setShowNotifInfo(true);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("admin:open-notifs", openFromAdmin);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("admin:open-notifs", openFromAdmin);
+      }
+    };
+  }, [buildAdminNotification]);
   useEffect(() => {
     let alive = true;
     const next = {};
@@ -76,10 +123,11 @@ export function GlobalDashboard({
     return () => { alive = false; };
   }, [newsItems]);
 
-  const unreadNotifications = (notifications || []).filter(
+  const realUnreadNotifications = (notifications || []).filter(
     (n) => !n.read_at && (n.type === "challenge_start" || n.type === "event_start")
   );
-  const hasUnreadNotif = unreadNotifications.length > 0;
+  const unreadNotifications = adminNotifOverride || realUnreadNotifications;
+  const hasUnreadNotif = realUnreadNotifications.length > 0;
 
   const formatEventDate = (value) => {
     if (!value) return "";
@@ -187,6 +235,22 @@ export function GlobalDashboard({
     if (index < 0) return null;
     return { index: index + 1, total: bots.length };
   }, [users, cardBot]);
+  const isAdminTestNotif = Array.isArray(adminNotifOverride) && adminNotifOverride.length > 0;
+  const canCancelChallenge =
+    !!onCancelChallenge &&
+    !!activeChallenge?.id &&
+    activeChallenge.type !== "evenement" &&
+    cardNotification?.meta?.challenge_id &&
+    String(cardNotification.meta.challenge_id) === String(activeChallenge.id);
+  const canCancelEvent =
+    !!onCancelChallenge &&
+    !!activeChallenge?.id &&
+    activeChallenge.type === "evenement" &&
+    cardNotification?.meta?.challenge_id &&
+    String(cardNotification.meta.challenge_id) === String(activeChallenge.id);
+  const canCancelAny =
+    (canCancelChallenge || canCancelEvent) ||
+    (isAdminTestNotif && !!onCancelChallenge && cardNotification?.type);
 
   return (
     <div className="grid gap-4 px-4 xl:px-8 pt-4 md:pt-4 xl:pt-0 pb-8">
@@ -197,6 +261,7 @@ export function GlobalDashboard({
               <div className="relative w-full">
                 <button
                   type="button"
+                  disabled={!hasUnreadNotif}
                   onClick={() => {
                     if (!unreadNotifications.length) return;
                     setShowNotifInfo((v) => !v);
@@ -225,7 +290,10 @@ export function GlobalDashboard({
                 </button>
                 <InfoPopover
                   open={showNotifInfo}
-                  onClose={() => setShowNotifInfo(false)}
+                  onClose={() => {
+                    setShowNotifInfo(false);
+                    setAdminNotifOverride(null);
+                  }}
                   title={
                     showCardNotif
                       ? ""
@@ -263,8 +331,8 @@ export function GlobalDashboard({
                                           <span><span className="font-bold">{botName}</span> te défie à la course sur <span className="font-bold">{distanceLabel}</span> !</span>
                                         </div>
                                         <div className="text-[18px]">
-                                           Cours au moins cette distance avant le{" "}
-                                          <span className="font-bold underline">{dateLabel}</span> pour gagner sa carte !
+                                           Cours au moins cette distance en une session avant le{" "}
+                                          <span className="font-bold">{dateLabel}</span> pour gagner cette carte !
                                         </div>
                                       </div>
                                     );
@@ -288,7 +356,7 @@ export function GlobalDashboard({
                                           <span className="font-bold">{cardName}</span>
                                         </div>
                                         <div className="text-[18px]">
-                                          Cours cette distance avant <span className="underline">demain</span> pour gagner sa carte !
+                                          Cours au moins cette distance en une session avant <span className="font-bold">demain</span> pour gagner cette carte !
                                         </div>
                                       </div>
                                     );
@@ -298,6 +366,25 @@ export function GlobalDashboard({
                               </div>
                             </div>
                             <div className="grid gap-4">
+                              {canCancelAny && (
+                                <div className="flex justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const confirmLabel =
+                                        cardNotification?.type === "event_start"
+                                          ? "Annuler cet événement ?"
+                                          : "Annuler ce défi ?";
+                                      if (!window.confirm(confirmLabel)) return;
+                                      onCancelChallenge();
+                                      setShowNotifInfo(false);
+                                    }}
+                                    className="rounded-full border border-rose-300/70 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:border-rose-400 hover:text-rose-700 dark:border-rose-400/60 dark:text-rose-300"
+                                  >
+                                    {cardNotification?.type === "event_start" ? "Annuler l'événement" : "Annuler le défi"}
+                                  </button>
+                                </div>
+                              )}
                               <div className="flex justify-center">
                                 <div className="w-full max-w-[360px]">
                               <UserHoloCard

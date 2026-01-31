@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -76,6 +76,7 @@ export function Dashboard({
   seasonEndDate = null,
   userName,
   userInfo,
+  allUsers,
   userRankInfo,
   userRunningAvgById,
   userCardOpen,
@@ -107,6 +108,7 @@ export function Dashboard({
     currentUserId &&
     (!userInfo?.id || String(userInfo.id) === String(currentUserId));
   const showCardCounts = !isBotUser && cardsUnlockedCounts && userInfo?.id;
+  const [showChallengeCard, setShowChallengeCard] = useState(false);
 
   const isEventChallenge = activeChallenge?.type === "evenement";
   const formattedDueDate = (() => {
@@ -135,6 +137,39 @@ export function Dashboard({
   const challengeKm = activeChallenge?.target_distance_m
     ? formatKmFixed(Number(activeChallenge.target_distance_m) / 1000)
     : null;
+  const challengeBotRankInfo = useMemo(() => {
+    if (!activeChallenge?.bot_id) return null;
+    const pool = (allUsers && allUsers.length ? allUsers : []).filter((u) => Boolean(u?.is_bot));
+    if (!pool.length) return null;
+    const bots = pool.slice().sort((a, b) => {
+      const aTime = new Date(a.created_at || 0).getTime();
+      const bTime = new Date(b.created_at || 0).getTime();
+      if (aTime !== bTime) return aTime - bTime;
+      return String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""));
+    });
+    const index = bots.findIndex((u) => String(u.id) === String(activeChallenge.bot_id));
+    if (index < 0) return null;
+    return { index: index + 1, total: bots.length };
+  }, [allUsers, activeChallenge]);
+
+  const challengeBot = useMemo(() => {
+    if (!activeChallenge?.bot_id) return null;
+    const pool = allUsers && allUsers.length ? allUsers : [];
+    const found = pool.find((u) => String(u.id) === String(activeChallenge.bot_id));
+    if (found) {
+      return {
+        ...found,
+        is_bot: true,
+        bot_card_type: found.bot_card_type || activeChallenge.type || "defi",
+      };
+    }
+    return {
+      id: activeChallenge.bot_id,
+      name: activeChallenge.bot_name || "Un bot",
+      is_bot: true,
+      bot_card_type: activeChallenge.type || "defi",
+    };
+  }, [allUsers, activeChallenge]);
 
   const toRgba = (hex, alpha) => {
     if (!hex) return "";
@@ -203,6 +238,41 @@ export function Dashboard({
               showBotAverage
               userRunningAvgKm={userRunningAvgKm}
               minSpinnerMs={500}
+            />
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+  const challengeCard = (
+    <AnimatePresence>
+      {showChallengeCard && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-[30px] sm:px-4"
+          onTouchMove={(e) => e.preventDefault()}
+        >
+          <motion.div
+            className="absolute inset-0 bg-black/80"
+            onClick={() => setShowChallengeCard(false)}
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            className="relative w-full max-w-[360px] mx-auto"
+            initial={{ opacity: 0, scale: 0.9, rotateX: 18, y: -12 }}
+            animate={{ opacity: 1, scale: 1, rotateX: 0, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, rotateX: -6 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <UserHoloCard
+              user={challengeBot || { name: activeChallenge?.bot_name || "Un bot", is_bot: true }}
+              nfDecimal={nfDecimal}
+              elevated
+              showBotAverage
+              minSpinnerMs={500}
+              userRankInfo={challengeBotRankInfo}
             />
           </motion.div>
         </div>
@@ -293,10 +363,18 @@ export function Dashboard({
       <>
         {heroBadge}
         {userCard}
+        {challengeCard}
         {showChallenge && (
           <div className="px-4 xl:px-8 pt-4">
             <Reveal>
-              <div className="rounded-2xl border border-rose-200/50 bg-rose-50/50 px-4 py-3 text-sm text-rose-900 shadow-sm dark:border-rose-400/20 dark:bg-rose-900/20 dark:text-rose-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserCard(false);
+                  setShowChallengeCard(true);
+                }}
+                className="w-full rounded-2xl border border-rose-300/80 bg-rose-50/50 px-4 py-3 text-left text-sm text-rose-900 shadow-sm transition-colors hover:border-rose-400/90 dark:border-rose-400/60 dark:bg-rose-900/20 dark:text-rose-100 dark:hover:border-rose-300/80"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="font-semibold">
                     Défi en cours contre {activeChallenge.bot_name || "un bot"}
@@ -313,7 +391,7 @@ export function Dashboard({
                 <div className="mt-2 text-xs text-rose-700 dark:text-rose-200 sm:hidden">
                   {dueLabel}
                 </div>
-              </div>
+              </button>
             </Reveal>
           </div>
         )}
@@ -453,10 +531,18 @@ export function Dashboard({
     <>
       {heroBadge}
       {userCard}
+      {challengeCard}
       {showChallenge && (
         <div className="px-4 xl:px-8 pt-4">
           <Reveal>
-            <div className="rounded-2xl border border-rose-200/50 bg-rose-50/50 px-4 py-3 text-sm text-rose-900 shadow-sm dark:border-rose-400/20 dark:bg-rose-900/20 dark:text-rose-100">
+            <button
+              type="button"
+              onClick={() => {
+                setShowUserCard(false);
+                setShowChallengeCard(true);
+              }}
+              className="w-full rounded-2xl border border-rose-300/80 bg-rose-50/50 px-4 py-3 text-left text-sm text-rose-900 shadow-sm transition-colors hover:border-rose-400/90 dark:border-rose-400/60 dark:bg-rose-900/20 dark:text-rose-100 dark:hover:border-rose-300/80"
+            >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="font-semibold">
                     Défi en cours contre {activeChallenge.bot_name || "un bot"}
@@ -473,7 +559,7 @@ export function Dashboard({
                 <div className="mt-2 text-xs text-rose-700 dark:text-rose-200 sm:hidden">
                   {dueLabel}
                 </div>
-            </div>
+            </button>
           </Reveal>
         </div>
       )}
