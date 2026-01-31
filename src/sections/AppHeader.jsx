@@ -251,14 +251,14 @@ export function AppHeader({
                     <Flag size={28} aria-hidden="true" />
                     <strong>Progresse et accomplis tes objectifs</strong>
                   </span>
-                  {"\n"}Enregistre tes séances de course, d’entraînement ou d’effort du jour en saisissant tes données manuellement (pour le moment), puis suis ta progression séance après séance pour améliorer tes performances, atteindre de nouveaux paliers, relever des défis et rester motivé grâce aux objectifs et classements intégrés.
+                  {"\n"}Enregistre tes séances de course, d’entraînement ou d’effort du jour en saisissant tes données manuellement, puis suis ta progression séance après séance pour améliorer tes performances, atteindre de nouveaux paliers, relever des défis et rester motivé grâce aux objectifs et classements intégrés.
                 </div>,
                 <div className="mt-[20px]">
                   <span className="inline-flex items-start gap-2 ">
                     <Layers size={28} aria-hidden="true" />
                     <strong>Débloque et collectionne des cartes</strong>
                   </span>
-                  {"\n"}Chaque effort compte : plus tu t’entraînes, plus tu débloques de cartes à collectionner et de récompenses à afficher fièrement. Des bots peuvent aussi te défier, transformant chaque sortie en duel, chaque foulée en affrontement — et faisant du running une véritable épopée.
+                  {"\n"}Chaque effort compte : plus tu t’entraînes, plus tu débloques de cartes à collectionner. Des bots peuvent aussi te défier, transformant chaque sortie en duel, chaque foulée en affrontement — et faisant du running une véritable épopée.
                 </div>,
                 <div className="mt-[20px]">
                   <strong className="underline">De nombreuses nouveautés et surprises arrivent bientôt !</strong>
