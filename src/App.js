@@ -1486,6 +1486,7 @@ export default function App() {
       className="
         app-root
         min-h-[100dvh]
+        flex flex-col
         relative
         bg-gradient-to-b
         from-slate-100 via-slate-50 to-slate-50
@@ -1567,7 +1568,7 @@ export default function App() {
 
         <main
           ref={mainRef}
-          className="pb-6"
+          className="flex-1 pb-6"
           style={{ paddingTop: "var(--main-top-padding)" }}
           onTouchStart={onSwipeStart}
           onTouchMove={onSwipeMove}

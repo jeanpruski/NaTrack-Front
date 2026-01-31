@@ -201,6 +201,7 @@ input[type="date"]::-moz-calendar-picker-indicator {
 
 .app-root {
   min-height: var(--app-height, 100svh);
+  min-height: 100%;
   box-sizing: border-box;
 }
 
