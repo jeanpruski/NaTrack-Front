@@ -406,7 +406,7 @@ export function GlobalDashboard({
                                     onClick={() => {
                                       const confirmLabel =
                                         cardNotification?.type === "event_start"
-                                          ? "Annuler cet événement ?"
+                                          ? "Ne pas participer à cet événement ?"
                                           : "Annuler ce défi ?";
                                       if (!window.confirm(confirmLabel)) return;
                                       onCancelChallenge();
@@ -414,7 +414,7 @@ export function GlobalDashboard({
                                     }}
                                     className="rounded-full border border-rose-300/70 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:border-rose-400 hover:text-rose-700 dark:border-rose-400/60 dark:text-rose-300"
                                   >
-                                    {cardNotification?.type === "event_start" ? "Annuler l'événement" : "Annuler le défi"}
+                                    {cardNotification?.type === "event_start" ? "Ne pas participer" : "Annuler le défi"}
                                   </button>
                                 )}
                                 {onOpenMyOptions && isAuth && (
@@ -427,9 +427,9 @@ export function GlobalDashboard({
                                     }}
                                     className="rounded-full border border-emerald-300/70 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-800 dark:border-emerald-400/60 dark:text-emerald-200"
                                   >
-                                    {cardNotifDetails?.isEvent ? "Relever l'événement" : "Relever le défi"}
-                                  </button>
-                                )}
+                                    {cardNotifDetails?.isEvent ? "Participer à l'événement" : "Relever le défi"}
+                                    </button>
+                                  )}
                               </div>
                               {cardNotification?.created_at && (
                                 <div className="mt-6 text-right text-xs text-slate-400 dark:text-slate-500">

@@ -1,4 +1,7 @@
 import React, { useMemo, useCallback, useState, useEffect } from "react";
+import dayjs from "dayjs";
+import "dayjs/locale/fr";
+import { Trophy } from "lucide-react";
 import { UserHoloCard } from "../components/UserHoloCard";
 import { InfoPopover } from "../components/InfoPopover";
 import { apiGet } from "../utils/api";
@@ -21,7 +24,8 @@ export function UserCardsPage({
 }) {
   const [showResultsInfo, setShowResultsInfo] = useState(false);
   const [resultsUser, setResultsUser] = useState(null);
-  const [resultsItems, setResultsItems] = useState([]);
+  const [resultsRows, setResultsRows] = useState([]);
+  const [resultsMessage, setResultsMessage] = useState("");
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsError, setResultsError] = useState("");
   const sorted = useMemo(() => {
@@ -133,40 +137,44 @@ export function UserCardsPage({
   useEffect(() => {
     if (!showResultsInfo || !resultsUser?.id) return;
     if (!isAuth || !authToken) {
-      setResultsItems([<span key="auth">Connecte-toi pour voir les résultats.</span>]);
+      setResultsRows([]);
+      setResultsMessage("Connecte-toi pour voir les résultats.");
       return;
     }
     let alive = true;
     setResultsLoading(true);
     setResultsError("");
+    setResultsMessage("");
     (async () => {
       try {
         const data = await apiGet(`/me/card-results?bot_id=${encodeURIComponent(resultsUser.id)}`, authToken);
         if (!alive) return;
-        const items = (Array.isArray(data) ? data : []).map((row, idx) => {
+        const rows = (Array.isArray(data) ? data : []).map((row, idx) => {
           const km = Number(row.distance_m) / 1000;
           const kmLabel = Number.isFinite(km) ? `${formatKmFixed(km)} km` : "—";
           const targetKm = Number(row.target_distance_m) / 1000;
-          const targetLabel = Number.isFinite(targetKm) ? `${formatKmFixed(targetKm)} km` : null;
-          return (
-            <div key={row.id || idx} className="flex items-center justify-between gap-4">
-              <span className="text-sm text-slate-700 dark:text-slate-200">{row.achieved_at}</span>
-              <span className="text-right text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {kmLabel}
-                {targetLabel ? (
-                  <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">
-                    / {targetLabel}
-                  </span>
-                ) : null}
-              </span>
-            </div>
-          );
+          const targetLabel = Number.isFinite(targetKm) ? `${formatKmFixed(targetKm)} km` : "—";
+          const date = row.achieved_at ? dayjs(row.achieved_at) : null;
+          const dateLabel = date && date.isValid()
+            ? date.locale("fr").format("dddd D MMMM YYYY")
+            : (row.achieved_at || "—");
+          return {
+            id: row.id || idx,
+            dateLabel,
+            kmLabel,
+            targetLabel,
+          };
         });
-        setResultsItems(items.length ? items : [<span key="empty">Aucun résultat pour le moment.</span>]);
+        if (!rows.length) {
+          setResultsRows([]);
+          setResultsMessage("Aucun résultat pour le moment.");
+        } else {
+          setResultsRows(rows);
+        }
       } catch (e) {
         if (!alive) return;
         setResultsError(e?.message || "Erreur résultats");
-        setResultsItems([]);
+        setResultsRows([]);
       } finally {
         if (alive) setResultsLoading(false);
       }
@@ -189,22 +197,52 @@ export function UserCardsPage({
       <InfoPopover
         open={showResultsInfo}
         onClose={() => setShowResultsInfo(false)}
-        title={
-          <span className="text-[26px] leading-tight">
-            Résultat contre {resultsUser?.name || ""}
-          </span>
-        }
+        title=""
         actionLabel={null}
-        headerImage="/big-logo.png"
+        headerImage={null}
         items={
           resultsLoading
             ? [<span key="loading">Chargement...</span>]
             : resultsError
               ? [<span key="error">Erreur résultats</span>]
-              : resultsItems
+              : [
+                  <div key="results" className="grid gap-5">
+                    <div className="flex items-center gap-3 px-2 pt-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
+                        <Trophy size={20} />
+                      </div>
+                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
+                        Résultats contre {resultsUser?.name || ""}
+                      </div>
+                    </div>
+                    {resultsMessage ? (
+                      <div className="px-2 text-sm text-slate-600 dark:text-slate-300">{resultsMessage}</div>
+                    ) : (
+                      <div className="px-2">
+                        <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-400">
+                          <span>Date</span>
+                          <span className="text-right">Distance</span>
+                          <span className="text-right">Objectif</span>
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          {resultsRows.map((row) => (
+                            <div
+                              key={row.id}
+                              className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-200"
+                            >
+                              <span>{row.dateLabel}</span>
+                              <span className="text-right font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</span>
+                              <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>,
+                ]
         }
         fullWidth
-        maxWidth={1024}
+        maxWidth={720}
         anchorRect={null}
         offsetY={-15}
         offsetYMobile={0}
