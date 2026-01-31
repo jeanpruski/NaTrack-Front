@@ -1,5 +1,6 @@
 // App.js
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "dayjs/locale/fr";
@@ -15,6 +16,7 @@ import { BusyOverlay } from "./sections/BusyOverlay";
 import { UserCardsPage } from "./sections/UserCardsPage";
 import { Toast } from "./components/Toast";
 import { InfoPopover } from "./components/InfoPopover";
+import { UserHoloCard } from "./components/UserHoloCard";
 import { useEditAuth } from "./hooks/useEditAuth";
 import { apiGet, apiJson } from "./utils/api";
 import { downloadCSV } from "./utils/downloadCSV";
@@ -107,6 +109,7 @@ export default function App() {
   const [isBusy, setIsBusy] = useState(false);
   const [authTransition, setAuthTransition] = useState(false);
   const [editModalInitialTab, setEditModalInitialTab] = useState("options");
+  const [showVictoryCardPreview, setShowVictoryCardPreview] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
@@ -509,6 +512,21 @@ export default function App() {
     activeSeasonInfo?.season_number !== null && activeSeasonInfo?.season_number !== undefined
       ? `Saison ${activeSeasonInfo.season_number}`
       : null;
+  const victoryBotRankInfo = useMemo(() => {
+    if (!victoryInfo?.botId) return null;
+    const bots = (users || [])
+      .filter((u) => Boolean(u?.is_bot))
+      .slice()
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at || 0).getTime();
+        const bTime = new Date(b.created_at || 0).getTime();
+        if (aTime !== bTime) return aTime - bTime;
+        return String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""));
+      });
+    const index = bots.findIndex((u) => String(u.id) === String(victoryInfo.botId));
+    if (index < 0) return null;
+    return { index: index + 1, total: bots.length };
+  }, [users, victoryInfo]);
   const seasonsSortedAsc = useMemo(() => {
     return [...(seasons || [])].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   }, [seasons]);
@@ -1594,7 +1612,10 @@ export default function App() {
             <BusyOverlay open={isBusy} />
             <InfoPopover
               open={!!victoryInfo}
-              onClose={() => setVictoryInfo(null)}
+              onClose={() => {
+                setVictoryInfo(null);
+                setShowVictoryCardPreview(false);
+              }}
               title=""
               actionLabel={null}
               headerImage={null}
@@ -1602,42 +1623,86 @@ export default function App() {
                 victoryInfo
                   ? [
                       <div key="victory" className="grid gap-5">
-                        <div className="flex items-center gap-3 px-2 pt-2">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
-                            <Trophy size={20} />
+                        <div className="px-2 pt-2 text-slate-700 dark:text-slate-200">
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 min-h-[40px] min-w-[40px] items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
+                                  <Trophy size={20} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
+                                    Victoire !
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="mt-3">
+                                <ul className="grid gap-2 text-sm sm:text-base">
+                                  <li className="flex items-center gap-2">
+                                    <Check size={18} className="text-emerald-500" />
+                                    <span>
+                                      Bot battu : <span className="font-semibold">{victoryInfo.botName}</span>
+                                    </span>
+                                  </li>
+                                  <li className="flex items-center gap-2">
+                                    <Check size={18} className="text-emerald-500" />
+                                    <span>
+                                      Ta distance :{" "}
+                                      <span className="font-semibold">
+                                        {Number.isFinite(victoryInfo.actualKm) ? `${formatKmFixed(victoryInfo.actualKm)} km` : "—"}
+                                      </span>
+                                    </span>
+                                  </li>
+                                  <li className="flex items-center gap-2">
+                                    <Check size={18} className="text-emerald-500" />
+                                    <span>
+                                      Objectif :{" "}
+                                      <span className="font-semibold">
+                                        {Number.isFinite(victoryInfo.distanceKm) ? `${formatKmFixed(victoryInfo.distanceKm)} km` : "—"}
+                                      </span>
+                                    </span>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (typeof window === "undefined") return;
+                                if (window.innerWidth < 768) return;
+                                setShowVictoryCardPreview(true);
+                              }}
+                              className="hidden md:flex h-[170px] w-[120px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
+                              aria-label="Ouvrir la carte"
+                            >
+                              <div className="pointer-events-none w-full">
+                                <div className="origin-top-right rounded-2xl md:scale-[0.32] md:-translate-x-20">
+                                  <UserHoloCard
+                                    user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
+                                    nfDecimal={nfDecimal}
+                                    showBotAverage
+                                    minSpinnerMs={500}
+                                    userRankInfo={victoryBotRankInfo}
+                                  />
+                                </div>
+                              </div>
+                            </button>
                           </div>
-                          <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
-                            Victoire !
+                          <div className="pointer-events-none mt-6 flex justify-center md:hidden">
+                            <div className="h-[230px] w-[140px] overflow-hidden">
+                              <div className="origin-top rounded-2xl scale-[0.392] -translate-x-10">
+                                <UserHoloCard
+                                  user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
+                                  nfDecimal={nfDecimal}
+                                  showBotAverage
+                                  minSpinnerMs={0}
+                                  autoTiltOnMobile={false}
+                                  userRankInfo={victoryBotRankInfo}
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="px-2 pt-3 text-slate-700 dark:text-slate-200">
-                          <ul className="grid gap-2 text-sm sm:text-base">
-                            <li className="flex items-center gap-2">
-                              <Check size={18} className="text-emerald-500" />
-                              <span>
-                                Bot battu : <span className="font-semibold">{victoryInfo.botName}</span>
-                              </span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <Check size={18} className="text-emerald-500" />
-                              <span>
-                                Ta distance :{" "}
-                                <span className="font-semibold">
-                                  {Number.isFinite(victoryInfo.actualKm) ? `${formatKmFixed(victoryInfo.actualKm)} km` : "—"}
-                                </span>
-                              </span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <Check size={18} className="text-emerald-500" />
-                              <span>
-                                Objectif :{" "}
-                                <span className="font-semibold">
-                                  {Number.isFinite(victoryInfo.distanceKm) ? `${formatKmFixed(victoryInfo.distanceKm)} km` : "—"}
-                                </span>
-                              </span>
-                            </li>
-                          </ul>
-                          <div className="mt-12 mb-12 flex justify-center">
+                          <div className="mb-6 flex justify-center md:mt-10">
                             <button
                               type="button"
                               onClick={() => {
@@ -1647,7 +1712,7 @@ export default function App() {
                                 setShowCardsPage(true);
                                 setRouteState({ type: "cards", slug: null });
                               }}
-                              className="rounded-full border border-emerald-300/80 bg-emerald-100/80 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/50 dark:bg-emerald-400/10 dark:text-emerald-200"
+                              className="rounded-full border border-emerald-300/80 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
                             >
                               Voir dans les cartes
                             </button>
@@ -1661,6 +1726,32 @@ export default function App() {
               maxWidth={720}
               anchorRect={null}
             />
+            {showVictoryCardPreview && victoryInfo && typeof document !== "undefined"
+              ? createPortal(
+                <div
+                  className="fixed inset-0 z-[100] flex items-center justify-center px-[30px] sm:px-4"
+                  onMouseDownCapture={(e) => e.stopPropagation()}
+                  onTouchStartCapture={(e) => e.stopPropagation()}
+                >
+                  <div
+                    className="absolute inset-0 bg-black/80"
+                    onClick={() => setShowVictoryCardPreview(false)}
+                    aria-hidden="true"
+                  />
+                  <div className="relative w-full max-w-[360px] mx-auto">
+                    <UserHoloCard
+                      user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
+                      nfDecimal={nfDecimal}
+                      showBotAverage
+                      minSpinnerMs={500}
+                      userRankInfo={victoryBotRankInfo}
+                      elevated
+                    />
+                  </div>
+                </div>,
+                document.body
+              )
+              : null}
 
             {isGlobalView ? (
             showNewsArchive ? (

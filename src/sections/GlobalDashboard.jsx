@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import { Bell, BellRing, Bot, Check, Medal, Newspaper, Sparkles, Swords, Trophy, User } from "lucide-react";
 import { Reveal } from "../components/Reveal";
 import { InfoPopover } from "../components/InfoPopover";
+import { UserHoloCard } from "../components/UserHoloCard";
 import { formatKmFixed } from "../utils/appUtils";
 
 function buildMonthKeys(sessions) {
@@ -54,6 +56,7 @@ export function GlobalDashboard({
 }) {
   const [newsImageReadyMap, setNewsImageReadyMap] = useState({});
   const [showNotifInfo, setShowNotifInfo] = useState(false);
+  const [showCardPreview, setShowCardPreview] = useState(false);
   const [showBotsInPodium, setShowBotsInPodium] = useState(false);
   const [notifAnchorRect] = useState(null);
   const [adminNotifOverride, setAdminNotifOverride] = useState(null);
@@ -219,13 +222,28 @@ export function GlobalDashboard({
     cardNotification?.meta?.bot_id
       ? fullUsers.find((u) => String(u.id) === String(cardNotification.meta.bot_id))
       : null;
+  const botRankInfo = useMemo(() => {
+    if (!cardBot) return null;
+    const bots = fullUsers
+      .filter((u) => Boolean(u?.is_bot))
+      .slice()
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at || 0).getTime();
+        const bTime = new Date(b.created_at || 0).getTime();
+        if (aTime !== bTime) return aTime - bTime;
+        return String(a.name || a.id || "").localeCompare(String(b.name || b.id || ""));
+      });
+    const index = bots.findIndex((u) => String(u.id) === String(cardBot.id));
+    if (index < 0) return null;
+    return { index: index + 1, total: bots.length };
+  }, [fullUsers, cardBot]);
   const cardNotifDetails = useMemo(() => {
     if (!cardNotification) return null;
     const body = cardNotification?.body || "";
     const isEvent = cardNotification?.type === "event_start";
     const botCardType = String(cardBot?.bot_card_type || activeChallenge?.type || "").toLowerCase();
     const kind = isEvent ? "event" : botCardType === "rare" ? "rare" : "defi";
-    const prefix = kind === "event" ? "Evenment" : "Défi";
+    const prefix = kind === "event" ? "Événement" : "Défi";
     const challengeMatch = body.match(
       /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) avant le (.+) pour gagner sa carte !$/i
     );
@@ -297,6 +315,12 @@ export function GlobalDashboard({
   const canCancelAny =
     (canCancelChallenge || canCancelEvent) ||
     (isAdminTestNotif && !!onCancelChallenge && cardNotification?.type);
+  const openCardPreview = () => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth < 768) return;
+    if (!cardBot) return;
+    setShowCardPreview(true);
+  };
 
   return (
     <div className="grid gap-4 px-4 xl:px-8 pt-4 md:pt-4 xl:pt-0 pb-8">
@@ -339,6 +363,7 @@ export function GlobalDashboard({
                   onClose={() => {
                     setShowNotifInfo(false);
                     setAdminNotifOverride(null);
+                    setShowCardPreview(false);
                   }}
                   title={
                     showCardNotif
@@ -353,53 +378,93 @@ export function GlobalDashboard({
                     showCardNotif
                         ? [
                           <div key="card" className="grid gap-5">
-                            <div className="flex items-center gap-3 px-2 pt-2">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
-                                {cardNotifDetails?.kind === "rare" ? (
-                                  <Sparkles size={20} />
-                                ) : cardNotifDetails?.isEvent ? (
-                                  <Newspaper size={20} />
-                                ) : (
-                                  <Swords size={20} />
-                                )}
+                            <div className="px-2 pt-2 text-slate-700 dark:text-slate-200">
+                              <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 min-h-[40px] min-w-[40px] items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
+                                      {cardNotifDetails?.kind === "rare" ? (
+                                        <Sparkles size={20} />
+                                      ) : cardNotifDetails?.isEvent ? (
+                                        <Newspaper size={20} />
+                                      ) : (
+                                        <Swords size={20} />
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
+                                        {cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3">
+                                    <ul className="grid gap-2 text-sm sm:text-base">
+                                      <li className="flex items-center gap-2">
+                                        <Check size={18} className="text-emerald-500" />
+                                        <span>
+                                          Objectif : <span className="font-semibold">{cardNotifDetails?.objective || "Distance minimum"}</span>
+                                        </span>
+                                      </li>
+                                      <li className="flex items-center gap-2">
+                                        <Check size={18} className="text-emerald-500" />
+                                        <span>
+                                          En <span className="font-semibold">une seule</span> session
+                                        </span>
+                                      </li>
+                                      {cardNotifDetails?.dueLabel && (
+                                        <li className="flex items-center gap-2">
+                                          <Check size={18} className="text-emerald-500" />
+                                          <span>
+                                            {cardNotifDetails?.isEvent ? (
+                                              <>
+                                                A faire <span className="font-semibold">aujourd'hui</span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                A faire avant le{" "}
+                                                <span className="font-semibold">{cardNotifDetails.dueLabel}</span>
+                                              </>
+                                            )}
+                                          </span>
+                                        </li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                </div>
+                            <button
+                              type="button"
+                              onClick={openCardPreview}
+                              className="hidden md:flex h-[170px] w-[120px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
+                              aria-label="Ouvrir la carte"
+                            >
+                              <div className="pointer-events-none w-full">
+                                <div className="origin-top-right rounded-2xl md:scale-[0.32] md:-translate-x-20">
+                                  <UserHoloCard
+                                    user={cardBot}
+                                    nfDecimal={nfDecimal}
+                                    showBotAverage
+                                    minSpinnerMs={500}
+                                    userRankInfo={botRankInfo}
+                                  />
+                                </div>
                               </div>
-                              <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
-                                {cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`}
+                            </button>
+                              </div>
+                          <div className="pointer-events-none mt-6 flex justify-center md:hidden">
+                            <div className="h-[230px] w-[140px] overflow-hidden">
+                              <div className="origin-top rounded-2xl scale-[0.392] -translate-x-10">
+                                <UserHoloCard
+                                  user={cardBot}
+                                  nfDecimal={nfDecimal}
+                                  showBotAverage
+                                  minSpinnerMs={0}
+                                  autoTiltOnMobile={false}
+                                  userRankInfo={botRankInfo}
+                                />
                               </div>
                             </div>
-                            <div className="px-2 pt-3 text-slate-700 dark:text-slate-200">
-                              <ul className="grid gap-2 text-sm sm:text-base">
-                                <li className="flex items-center gap-2">
-                                  <Check size={18} className="text-emerald-500" />
-                                  <span>
-                                    Objectif : <span className="font-semibold">{cardNotifDetails?.objective || "Distance minimum"}</span>
-                                  </span>
-                                </li>
-                                <li className="flex items-center gap-2">
-                                  <Check size={18} className="text-emerald-500" />
-                                  <span>
-                                    En <span className="font-semibold">une seule</span> session
-                                  </span>
-                                </li>
-                                {cardNotifDetails?.dueLabel && (
-                                  <li className="flex items-center gap-2">
-                                    <Check size={18} className="text-emerald-500" />
-                                    <span>
-                                      {cardNotifDetails?.isEvent ? (
-                                        <>
-                                          A faire <span className="font-semibold">aujourd'hui</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          A faire avant le{" "}
-                                          <span className="font-semibold">{cardNotifDetails.dueLabel}</span>
-                                        </>
-                                      )}
-                                    </span>
-                                  </li>
-                                )}
-                              </ul>
-                              <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+                          </div>
+                              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-center md:mt-10">
                                 {canCancelAny && (
                                   <button
                                     type="button"
@@ -428,8 +493,8 @@ export function GlobalDashboard({
                                     className="rounded-full border border-emerald-300/70 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-800 dark:border-emerald-400/60 dark:text-emerald-200"
                                   >
                                     {cardNotifDetails?.isEvent ? "Participer à l'événement" : "Relever le défi"}
-                                    </button>
-                                  )}
+                                  </button>
+                                )}
                               </div>
                               {cardNotification?.created_at && (
                                 <div className="mt-6 text-right text-xs text-slate-400 dark:text-slate-500">
@@ -479,6 +544,32 @@ export function GlobalDashboard({
                   offsetY={-15}
                   offsetYMobile={0}
                 />
+                {showCardPreview && cardBot && typeof document !== "undefined"
+                  ? createPortal(
+                    <div
+                      className="fixed inset-0 z-[100] flex items-center justify-center px-[30px] sm:px-4"
+                      onMouseDownCapture={(e) => e.stopPropagation()}
+                      onTouchStartCapture={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        className="absolute inset-0 bg-black/80"
+                        onClick={() => setShowCardPreview(false)}
+                        aria-hidden="true"
+                      />
+                      <div className="relative w-full max-w-[360px] mx-auto">
+                        <UserHoloCard
+                          user={cardBot}
+                          nfDecimal={nfDecimal}
+                          showBotAverage
+                          minSpinnerMs={500}
+                          userRankInfo={botRankInfo}
+                          elevated
+                        />
+                      </div>
+                    </div>,
+                    document.body
+                  )
+                  : null}
               </div>
 
               <button
