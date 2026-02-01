@@ -1826,6 +1826,7 @@ export default function App() {
                   userName={headerTitle}
                   userInfo={selectedUserInfo}
                   allUsers={usersForRouting}
+                  notifications={notifications}
                   activeSeasonNumber={activeSeasonInfo?.season_number ?? null}
                   seasonStartDate={seasonCalendarStartDate}
                   seasonEndDate={seasonCalendarEndDate}

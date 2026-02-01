@@ -18,9 +18,12 @@ function buildMonthKeys(sessions) {
 
 function buildSparklinePoints(values, w, h) {
   if (!values.length) return `0,${h / 2} ${w},${h / 2}`;
-  const max = Math.max(...values, 1);
-  const step = values.length > 1 ? w / (values.length - 1) : w;
-  return values
+  const filtered = values.filter((v) => v > 0);
+  if (!filtered.length) return `0,${h / 2} ${w},${h / 2}`;
+  if (filtered.length === 1) return `0,${h / 2} ${w},${h / 2}`;
+  const max = Math.max(...filtered, 1);
+  const step = filtered.length > 1 ? w / (filtered.length - 1) : w;
+  return filtered
     .map((v, i) => {
       const x = i * step;
       const y = h - (v / max) * (h - 4) - 2;
@@ -239,11 +242,29 @@ export function GlobalDashboard({
   }, [fullUsers, cardBot]);
   const cardNotifDetails = useMemo(() => {
     if (!cardNotification) return null;
+    const todayTs = dayjs().startOf("day").valueOf();
+    const upcomingEvents = (notifications || [])
+      .filter((n) => n?.type === "event_start")
+      .map((n) => ({
+        notif: n,
+        ts: dayjs(n?.event_date || n?.created_at).startOf("day").valueOf(),
+      }))
+      .filter((n) => Number.isFinite(n.ts) && n.ts >= todayTs)
+      .sort((a, b) => a.ts - b.ts);
+    const eventNotification = upcomingEvents.length ? upcomingEvents[0].notif : null;
+    const upcomingEventBot = (fullUsers || [])
+      .filter((u) => u?.is_bot && String(u?.bot_card_type || "").toLowerCase() === "evenement" && u?.bot_event_date)
+      .map((u) => ({
+        user: u,
+        ts: dayjs(u.bot_event_date).startOf("day").valueOf(),
+      }))
+      .filter((n) => Number.isFinite(n.ts) && n.ts >= todayTs)
+      .sort((a, b) => a.ts - b.ts)[0] || null;
     const body = cardNotification?.body || "";
     const isEvent = cardNotification?.type === "event_start";
     const botCardType = String(cardBot?.bot_card_type || activeChallenge?.type || "").toLowerCase();
     const kind = isEvent ? "event" : botCardType === "rare" ? "rare" : "defi";
-    const prefix = kind === "event" ? "Événement" : "Défi";
+    const prefix = kind === "event" ? "Événement" : "";
     const challengeMatch = body.match(
       /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) avant le (.+) pour gagner sa carte !$/i
     );
@@ -259,13 +280,20 @@ export function GlobalDashboard({
     let botName = cardBot?.name || activeChallenge?.bot_name || "Un bot";
     let distanceLabel = null;
     let dueLabel = null;
+    let dueTs = null;
+    let dueIsEvent = false;
     if (challengeMatch) {
       botName = challengeMatch[1] || botName;
       const parsed = parseDistance(challengeMatch[2]);
       distanceLabel = parsed.label;
       const rawDue = challengeMatch[3] || null;
       const parsedDue = rawDue ? dayjs(rawDue) : null;
-      dueLabel = parsedDue && parsedDue.isValid() ? formatEventDate(parsedDue.format("YYYY-MM-DD")) : rawDue;
+      if (parsedDue && parsedDue.isValid()) {
+        dueLabel = formatEventDate(parsedDue.format("YYYY-MM-DD"));
+        dueTs = parsedDue.startOf("day").valueOf();
+      } else {
+        dueLabel = rawDue;
+      }
     }
     if (eventMatch) {
       const parsed = parseDistance(eventMatch[1]);
@@ -275,9 +303,26 @@ export function GlobalDashboard({
     if (!distanceLabel && Number.isFinite(activeChallenge?.target_distance_m)) {
       distanceLabel = formatKmFixed(Number(activeChallenge.target_distance_m) / 1000);
     }
-    if (!dueLabel && activeChallenge?.due_date && !isEvent) {
+    if (!isEvent && (eventNotification || upcomingEventBot)) {
+      const eventDateValue = (eventNotification?.event_date || eventNotification?.created_at || upcomingEventBot?.user?.bot_event_date || "");
+      const eventTs = dayjs(eventDateValue).startOf("day").valueOf();
+      if (!dueTs && activeChallenge?.due_at) {
+        const ts = dayjs(activeChallenge.due_at).startOf("day").valueOf();
+        if (Number.isFinite(ts)) dueTs = ts;
+      }
+      if (!dueTs || (Number.isFinite(eventTs) && eventTs <= dueTs)) {
+        const formatted = formatEventDate(eventDateValue);
+        dueLabel = formatted || dueLabel;
+        dueIsEvent = true;
+      }
+    }
+    if (activeChallenge?.due_date && !isEvent) {
       const formatted = formatEventDate(activeChallenge.due_date);
-      dueLabel = formatted || null;
+      if (!dueLabel) dueLabel = formatted || null;
+      if (!dueTs) {
+        const ts = dayjs(activeChallenge.due_date).startOf("day").valueOf();
+        if (Number.isFinite(ts)) dueTs = ts;
+      }
     }
     if (!dueLabel && !isEvent) {
       const baseDate = cardNotification?.created_at ? dayjs(cardNotification.created_at) : dayjs();
@@ -286,9 +331,13 @@ export function GlobalDashboard({
       dueLabel = formatted || null;
     }
     const distanceSuffix = isEvent ? "km aujourd'hui" : "km en une course";
-    const title = distanceLabel
-      ? `${prefix} ${botName} – ${distanceLabel} ${distanceSuffix}`
-      : `${prefix} ${botName}`;
+    const title = kind === "event"
+      ? (distanceLabel
+        ? `${prefix} ${botName} – ${distanceLabel} ${distanceSuffix}`
+        : `${prefix} ${botName}`)
+      : (distanceLabel
+        ? `${botName} te défie ! – ${distanceLabel} ${distanceSuffix}`
+        : `${botName} te défie !`);
     const objective = distanceLabel ? `${distanceLabel} km minimum` : "Distance minimum";
     return {
       isEvent,
@@ -296,6 +345,7 @@ export function GlobalDashboard({
       title,
       objective,
       dueLabel: isEvent ? "aujourd'hui" : dueLabel,
+      dueIsEvent,
     };
   }, [cardNotification, cardBot, activeChallenge]);
   const showCardNotif = !!cardNotification && unreadNotifications.length === 1 && cardBot;
@@ -419,14 +469,21 @@ export function GlobalDashboard({
                                           <span>
                                             {cardNotifDetails?.isEvent ? (
                                               <>
-                                                A faire <span className="font-semibold">aujourd'hui</span>
+                                                A réaliser <span className="font-semibold">aujourd'hui</span>
                                               </>
-                                            ) : (
-                                              <>
-                                                A faire avant le{" "}
-                                                <span className="font-semibold">{cardNotifDetails.dueLabel}</span>
-                                              </>
-                                            )}
+                                            ) : (() => {
+                                              const raw = String(cardNotifDetails.dueLabel || "");
+                                              const cleaned = raw
+                                                .replace(/\s*à\s*\d{1,2}(:\d{2}|h\d{2}).*$/i, "")
+                                                .trim();
+        return (
+          <>
+            A réaliser avant le{" "}
+            <span className="font-semibold">{cleaned || cardNotifDetails.dueLabel}</span>
+            {cardNotifDetails?.dueIsEvent ? " (pour cause d'événement)" : ""}
+          </>
+        );
+      })()}
                                           </span>
                                         </li>
                                       )}

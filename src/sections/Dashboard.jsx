@@ -77,6 +77,7 @@ export function Dashboard({
   userName,
   userInfo,
   allUsers,
+  notifications = [],
   userRankInfo,
   userRunningAvgById,
   userCardOpen,
@@ -111,13 +112,50 @@ export function Dashboard({
   const [showChallengeCard, setShowChallengeCard] = useState(false);
 
   const isEventChallenge = activeChallenge?.type === "evenement";
+  const eventCancelInfo = useMemo(() => {
+    const todayTs = dayjs().startOf("day").valueOf();
+    const upcoming = (notifications || [])
+      .filter((n) => n?.type === "event_start")
+      .map((n) => ({
+        notif: n,
+        ts: dayjs(n?.event_date || n?.created_at).startOf("day").valueOf(),
+      }))
+      .filter((n) => Number.isFinite(n.ts) && n.ts >= todayTs)
+      .sort((a, b) => a.ts - b.ts);
+    const eventNotif = upcoming.length ? upcoming[0].notif : null;
+    const eventBot = (allUsers || [])
+      .filter((u) => u?.is_bot && String(u?.bot_card_type || "").toLowerCase() === "evenement" && u?.bot_event_date)
+      .map((u) => ({
+        user: u,
+        ts: dayjs(u.bot_event_date).startOf("day").valueOf(),
+      }))
+      .filter((n) => Number.isFinite(n.ts) && n.ts >= todayTs)
+      .sort((a, b) => a.ts - b.ts)[0] || null;
+    if (!eventNotif && !eventBot) return { label: "", ts: null, isEventCancel: false };
+    const dateValue = eventNotif?.event_date || eventNotif?.created_at || eventBot?.user?.bot_event_date || "";
+    const formatted = dayjs(dateValue)
+      .locale("fr")
+      .format("dddd D MMMM YYYY");
+    const parts = formatted.split(" ");
+    if (parts.length < 3) return { label: formatted, ts: upcoming[0].ts };
+    const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+    const day = cap(parts[0]);
+    const month = cap(parts[2]);
+    const fallbackTs = eventBot?.ts ?? upcoming[0]?.ts ?? null;
+    return { label: `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`, ts: fallbackTs, isEventCancel: true };
+  }, [notifications, allUsers]);
   const formattedDueDate = (() => {
     if (!activeChallengeDueAt && !activeChallenge?.due_at && !activeChallenge?.due_date) return "";
     if (isEventChallenge) return "demain";
+    const dueBase = activeChallengeDueAt || activeChallenge.due_at || activeChallenge.due_date;
+    const dueTs = dueBase ? dayjs(dueBase).startOf("day").valueOf() : null;
+    if (eventCancelInfo?.label && (!dueTs || (eventCancelInfo.ts !== null && eventCancelInfo.ts <= dueTs))) {
+      return `${eventCancelInfo.label} (pour cause d'événement)`;
+    }
     const dateValue = activeChallengeDueAt || activeChallenge.due_at || activeChallenge.due_date;
     const formatted = dayjs(dateValue)
       .locale("fr")
-      .format("dddd D MMMM YYYY à HH:mm");
+      .format("dddd D MMMM YYYY");
     const parts = formatted.split(" ");
     if (parts.length < 5) return formatted;
     const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
