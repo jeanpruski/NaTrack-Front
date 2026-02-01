@@ -13,6 +13,7 @@ export function UserHoloCard({
   showBackOnly = false,
   autoTiltOnMobile = true,
   autoTiltVariant = "default",
+  leftAlignDetailsDesktop = false,
 }) {
   const showBackOnlySafe = Boolean(showBackOnly);
   const displayName = user?.name || "Utilisateur";
@@ -347,9 +348,16 @@ export function UserHoloCard({
               </div>
             )}
             </div>
-            <div className="mt-3 min-h-[10rem] rounded-2xl border border-emerald-200/30 bg-emerald-950/50 px-3 py-2 text-sm flex flex-col">
+            <div
+              className={[
+                "mt-3 min-h-[10rem] rounded-2xl border border-emerald-200/30 bg-emerald-950/50 px-3 py-2 text-sm flex flex-col",
+                leftAlignDetailsDesktop ? "md:text-left md:items-start" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
             {showEventDate && (
-              <div className="">
+              <div className={leftAlignDetailsDesktop ? "md:self-start" : ""}>
                 <span className="text-xs uppercase tracking-wide text-emerald-200">Date</span>
                 <span className="ml-2 font-semibold break-words">
                   {dayjs(botEventDate).isValid()
@@ -367,13 +375,27 @@ export function UserHoloCard({
               </div>
             )}
             {showShoeDetails && (
-              <div className={showEventDate ? "mt-1" : ""}>
+              <div
+                className={[
+                  showEventDate ? "mt-1" : "",
+                  leftAlignDetailsDesktop ? "md:self-start" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <span className="text-xs uppercase tracking-wide text-emerald-200">Chaussures</span>
                 <span className="ml-2 font-semibold break-words">{userShoeName}</span>
               </div>
             )}
             {showAverage && (
-              <div className={showShoeDetails ? "mt-1" : ""}>
+              <div
+                className={[
+                  showShoeDetails ? "mt-1" : "",
+                  leftAlignDetailsDesktop ? "md:self-start" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <span className="text-xs uppercase tracking-wide text-emerald-200">{averageLabel}</span>
                 <span className="ml-2 text-[14px] font-semibold text-white">
                   {nfDecimal.format(averageValue)} km

@@ -505,7 +505,7 @@ export function GlobalDashboard({
                             <button
                               type="button"
                               onClick={openCardPreview}
-                              className="hidden md:flex h-[170px] w-[140px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
+                              className="hidden md:flex h-[170px] w-[140px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in text-left"
                               aria-label="Ouvrir la carte"
                             >
                               <div className="pointer-events-none w-full">
@@ -516,6 +516,7 @@ export function GlobalDashboard({
                                     showBotAverage
                                     minSpinnerMs={500}
                                     userRankInfo={botRankInfo}
+                                    leftAlignDetailsDesktop
                                   />
                                 </div>
                               </div>
