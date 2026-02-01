@@ -1673,7 +1673,7 @@ export default function App() {
                                 if (window.innerWidth < 768) return;
                                 setShowVictoryCardPreview(true);
                               }}
-                              className="hidden md:flex h-[170px] w-[120px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
+                              className="hidden md:flex h-[170px] w-[140px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
                               aria-label="Ouvrir la carte"
                             >
                               <div className="pointer-events-none w-full">
@@ -1690,8 +1690,8 @@ export default function App() {
                             </button>
                           </div>
                           <div className="pointer-events-none mt-6 flex justify-center md:hidden">
-                            <div className="h-[230px] w-[140px] overflow-hidden">
-                              <div className="origin-top rounded-2xl scale-[0.392] -translate-x-10">
+                            <div className="h-[265px] w-[185px] overflow-hidden">
+                              <div className="origin-top rounded-2xl scale-[0.48] -translate-x-10">
                                 <UserHoloCard
                                   user={users.find((u) => String(u.id) === String(victoryInfo.botId)) || { name: victoryInfo.botName }}
                                   nfDecimal={nfDecimal}

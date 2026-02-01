@@ -393,24 +393,26 @@ export function GlobalDashboard({
                                     </div>
                                     <div className="min-w-0">
                                       <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
-                                        {cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`}
+                                        {(() => {
+                                          const title = cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`;
+                                          const parts = title.split(" – ");
+                                          if (parts.length >= 2) {
+                                            return (
+                                              <div className="space-y-1">
+                                                <div>{parts[0]}</div>
+                                                <div className="text-base font-medium text-slate-600 dark:text-slate-300">
+                                                  {parts.slice(1).join(" – ")}
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                          return title;
+                                        })()}
                                       </div>
                                     </div>
                                   </div>
                                   <div className="mt-3">
                                     <ul className="grid gap-2 text-sm sm:text-base">
-                                      <li className="flex items-center gap-2">
-                                        <Check size={18} className="text-emerald-500" />
-                                        <span>
-                                          Objectif : <span className="font-semibold">{cardNotifDetails?.objective || "Distance minimum"}</span>
-                                        </span>
-                                      </li>
-                                      <li className="flex items-center gap-2">
-                                        <Check size={18} className="text-emerald-500" />
-                                        <span>
-                                          En <span className="font-semibold">une seule</span> session
-                                        </span>
-                                      </li>
                                       {cardNotifDetails?.dueLabel && (
                                         <li className="flex items-center gap-2">
                                           <Check size={18} className="text-emerald-500" />
@@ -428,13 +430,25 @@ export function GlobalDashboard({
                                           </span>
                                         </li>
                                       )}
+                                      <li className="flex items-center gap-2">
+                                        <Check size={18} className="text-emerald-500" />
+                                        <span>
+                                          En <span className="font-semibold">une seule</span> session
+                                        </span>
+                                      </li>
+                                      <li className="flex items-center gap-2">
+                                        <Check size={18} className="text-emerald-500" />
+                                        <span>
+                                          Objectif : <span className="font-semibold">{cardNotifDetails?.objective || "Distance minimum"}</span>
+                                        </span>
+                                      </li>
                                     </ul>
                                   </div>
                                 </div>
                             <button
                               type="button"
                               onClick={openCardPreview}
-                              className="hidden md:flex h-[170px] w-[120px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
+                              className="hidden md:flex h-[170px] w-[140px] -ml-8 shrink-0 overflow-hidden self-start cursor-zoom-in"
                               aria-label="Ouvrir la carte"
                             >
                               <div className="pointer-events-none w-full">
@@ -451,8 +465,8 @@ export function GlobalDashboard({
                             </button>
                               </div>
                           <div className="pointer-events-none mt-6 flex justify-center md:hidden">
-                            <div className="h-[230px] w-[140px] overflow-hidden">
-                              <div className="origin-top rounded-2xl scale-[0.392] -translate-x-10">
+                            <div className="h-[265px] w-[185px] overflow-hidden">
+                              <div className="origin-top rounded-2xl scale-[0.48] -translate-x-10">
                                 <UserHoloCard
                                   user={cardBot}
                                   nfDecimal={nfDecimal}
