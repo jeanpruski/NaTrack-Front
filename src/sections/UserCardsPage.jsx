@@ -21,6 +21,7 @@ export function UserCardsPage({
   isAuth = false,
   authToken = null,
   cardResults = [],
+  scrollToUserId = null,
 }) {
   const [showResultsInfo, setShowResultsInfo] = useState(false);
   const [resultsUser, setResultsUser] = useState(null);
@@ -28,6 +29,8 @@ export function UserCardsPage({
   const [resultsMessage, setResultsMessage] = useState("");
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsError, setResultsError] = useState("");
+  const [highlightId, setHighlightId] = useState(null);
+  const [highlightFadeOut, setHighlightFadeOut] = useState(false);
   const sorted = useMemo(() => {
     return [...users].sort((a, b) => {
       const aTime = new Date(a.created_at || 0).getTime();
@@ -184,6 +187,34 @@ export function UserCardsPage({
     };
   }, [showResultsInfo, resultsUser, isAuth, authToken]);
 
+  useEffect(() => {
+    if (!scrollToUserId) return;
+    let attempts = 0;
+    let timer = null;
+    const tryScroll = () => {
+      attempts += 1;
+      const el = document.getElementById(`card-item-${scrollToUserId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightId(String(scrollToUserId));
+        setHighlightFadeOut(false);
+        timer = setTimeout(() => setHighlightFadeOut(true), 2000);
+        timer = setTimeout(() => {
+          setHighlightId(null);
+          setHighlightFadeOut(false);
+        }, 2300);
+        return;
+      }
+      if (attempts < 12) {
+        setTimeout(tryScroll, 120);
+      }
+    };
+    tryScroll();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [scrollToUserId]);
+
   if (!users.length) {
     return (
       <div className="px-4 xl:px-8 pt-4 pb-8 text-sm text-slate-600 dark:text-slate-300">
@@ -249,20 +280,40 @@ export function UserCardsPage({
       />
       <div className="mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-4">
         {visibleUsers.map((u) => (
-          <div key={u.id} className="flex w-[360px] min-w-[342px] flex-col items-center gap-2">
-            <UserHoloCard
-              user={u}
-              nfDecimal={nfDecimal}
-              showBotAverage
-              minSpinnerMs={500}
-              userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
-              showBackOnly={isLockedBot(u)}
-              autoTiltVariant="soft"
-              userRankInfo={{
-                index: u?.is_bot ? botRankById.get(u.id) : userRankById.get(u.id),
-                total: u?.is_bot ? botsOnlyByDate.length : usersOnlyByDate.length,
-              }}
-            />
+          <div
+            key={u.id}
+            id={`card-item-${u.id}`}
+            className="flex w-[360px] min-w-[342px] flex-col items-center gap-2"
+          >
+            <div
+              className={`relative ${
+                highlightId === String(u.id)
+                  ? "rounded-[22px] drop-shadow-[0_22px_70px_rgba(14,165,233,0.6)] drop-shadow-[0_0_130px_rgba(14,165,233,0.5)]"
+                  : ""
+              }`}
+            >
+              {highlightId === String(u.id) && (
+                <span
+                  className={`pointer-events-none absolute inset-[-6px] rounded-[28px] shadow-[0_0_90px_rgba(14,165,233,0.55)] transition-opacity duration-300 ${
+                    highlightFadeOut ? "opacity-0" : "opacity-100"
+                  }`}
+                  aria-hidden="true"
+                />
+              )}
+              <UserHoloCard
+                user={u}
+                nfDecimal={nfDecimal}
+                showBotAverage
+                minSpinnerMs={500}
+                userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
+                showBackOnly={isLockedBot(u)}
+                autoTiltVariant="soft"
+                userRankInfo={{
+                  index: u?.is_bot ? botRankById.get(u.id) : userRankById.get(u.id),
+                  total: u?.is_bot ? botsOnlyByDate.length : usersOnlyByDate.length,
+                }}
+              />
+            </div>
             {!(u?.is_bot && !showAllCardsFront && !unlockedBotIds.has(String(u.id))) ? (
               <div className="flex items-center gap-2">
                 {!!u?.is_bot && (

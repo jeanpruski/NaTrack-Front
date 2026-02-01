@@ -105,6 +105,7 @@ export default function App() {
   const [cardsFilter, setCardsFilter] = useState("mixte");
   const [showAllCardsFront, setShowAllCardsFront] = useState(false);
   const [hideLockedCards, setHideLockedCards] = useState(false);
+  const [scrollToCardId, setScrollToCardId] = useState(null);
   const [toast, setToast] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [authTransition, setAuthTransition] = useState(false);
@@ -1710,6 +1711,9 @@ export default function App() {
                                 setSelectedUser(null);
                                 setUserCardOpen(false);
                                 setShowCardsPage(true);
+                                if (victoryInfo?.botId) {
+                                  setScrollToCardId(String(victoryInfo.botId));
+                                }
                                 setRouteState({ type: "cards", slug: null });
                               }}
                               className="rounded-full border border-emerald-300/80 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
@@ -1769,9 +1773,11 @@ export default function App() {
                   isAuth={isAuth}
                   authToken={authToken}
                   cardResults={cardResults}
+                  scrollToUserId={scrollToCardId}
                   onSelectUser={(u) => {
                     setShowCardsPage(false);
                     setUserCardOpen(false);
+                    setScrollToCardId(null);
                     const slug = getUserSlug(u);
                     if (slug) setRouteState({ type: "user", slug });
                     handleSelectUser(u);
@@ -1854,7 +1860,7 @@ export default function App() {
                 nfDecimal={nfDecimal}
               />
             )}
-            {isAdmin && isGlobalView && (
+            {isAdmin && isGlobalView && !showCardsPage && !showNewsArchive && (
               <div className="flex justify-end gap-2 px-4 xl:px-8">
                 <button
                   type="button"
