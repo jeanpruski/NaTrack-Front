@@ -1,6 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import { capFirst } from "../utils/strings";
+import { formatKmFixed } from "../utils/appUtils";
 
 const SWIM_COLORS = [
   "#e0f2fe",
@@ -69,6 +71,8 @@ const getRangeBounds = (range, sessions, seasonStartDate, seasonEndDate) => {
 };
 
 export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seasonEndDate = null }) {
+  const containerRef = useRef(null);
+  const [tooltip, setTooltip] = useState(null);
   const { weeks, activeDays, totalDays } = useMemo(() => {
     const { start, end } = getRangeBounds(range, sessions, seasonStartDate, seasonEndDate);
     const counts = new Map();
@@ -76,9 +80,12 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
     sessions.forEach((s) => {
       const key = toKey(s.date);
       const type = (s.type || "swim").toLowerCase() === "run" ? "run" : "swim";
-      const prev = counts.get(key) || { swim: 0, run: 0 };
+      const prev = counts.get(key) || { swim: 0, run: 0, swimKm: 0, runKm: 0 };
+      const km = Number(s.distance) / 1000;
       if (type === "run") prev.run += 1;
       else prev.swim += 1;
+      if (type === "run") prev.runKm += Number.isFinite(km) ? km : 0;
+      else prev.swimKm += Number.isFinite(km) ? km : 0;
       counts.set(key, prev);
     });
 
@@ -100,12 +107,21 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
       const key = d.format("YYYY-MM-DD");
       const inRange = (d.isSame(start, "day") || d.isAfter(start, "day"))
         && (d.isSame(end, "day") || d.isBefore(end, "day"));
-      const dayCounts = counts.get(key) || { swim: 0, run: 0 };
+      const dayCounts = counts.get(key) || { swim: 0, run: 0, swimKm: 0, runKm: 0 };
       const count = dayCounts.swim + dayCounts.run;
       if (inRange && count > 0) {
         maxCount = Math.max(maxCount, count);
       }
-      days.push({ date: d, key, inRange, count, swim: dayCounts.swim, run: dayCounts.run });
+      days.push({
+        date: d,
+        key,
+        inRange,
+        count,
+        swim: dayCounts.swim,
+        run: dayCounts.run,
+        swimKm: dayCounts.swimKm,
+        runKm: dayCounts.runKm,
+      });
     }
 
     const weeksList = [];
@@ -163,6 +179,40 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
     }
   });
 
+  const formatTooltip = (day) => {
+    const label = capFirst(day.date.format("dddd DD MMM YYYY"));
+    if (day.count <= 0) {
+      return { title: label, detail: "Aucune activité" };
+    }
+    const parts = [];
+    if (day.run > 0) {
+      parts.push(`Running ${formatKmFixed(day.runKm)} km`);
+    }
+    if (day.swim > 0) {
+      parts.push(`Natation ${formatKmFixed(day.swimKm)} km`);
+    }
+    return { title: label, detail: parts.join(" • ") };
+  };
+
+  const getTooltipStyle = (tooltip) => {
+    const width = 220;
+    const height = 64;
+    const padding = 12;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 0;
+    let left = tooltip.clientX + 12;
+    let top = tooltip.clientY + 12;
+    if (vw) {
+      left = Math.min(left, vw - width - padding);
+      left = Math.max(left, padding);
+    }
+    if (vh) {
+      top = Math.min(top, vh - height - padding);
+      top = Math.max(top, padding);
+    }
+    return { left, top };
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -186,7 +236,7 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
           </span>
         </div>
       </div>
-      <div className="w-full h-32 sm:h-36">
+      <div ref={containerRef} className="relative w-full h-32 sm:h-36">
         <div className="flex h-full flex-col" style={{ gap: "0.2rem" }}>
           <div className="flex items-end text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
             <div className="w-16 shrink-0" />
@@ -218,7 +268,6 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
             >
               {week.map((day) => {
                 const label = capFirst(day.date.format("dddd DD MMM YYYY"));
-                const title = `${label} • ${day.count} seance${day.count > 1 ? "s" : ""}`;
                 const isMix = day.swim > 0 && day.run > 0;
                 const isSwimOnly = day.swim > 0 && day.run === 0;
                 const isRunOnly = day.run > 0 && day.swim === 0;
@@ -242,9 +291,25 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
                 return (
                   <span
                     key={day.key}
-                    title={title}
                     className={`w-full h-full rounded-sm ${baseClass}`}
                     style={style}
+                    onMouseEnter={(e) => {
+                      const info = formatTooltip(day);
+                      setTooltip({
+                        clientX: e.clientX,
+                        clientY: e.clientY,
+                        info,
+                      });
+                    }}
+                    onMouseMove={(e) => {
+                      if (!tooltip) return;
+                      setTooltip((prev) =>
+                        prev
+                          ? { ...prev, clientX: e.clientX, clientY: e.clientY }
+                          : prev
+                      );
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
                   />
                 );
               })}
@@ -253,6 +318,18 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
           </div>
         </div>
       </div>
+      {tooltip && typeof document !== "undefined"
+        ? createPortal(
+          <div
+            className="pointer-events-none fixed z-[90] max-w-[220px] rounded-lg bg-slate-900/95 px-3 py-2 text-xs text-white shadow-lg"
+            style={getTooltipStyle(tooltip)}
+          >
+            <div className="font-semibold">{tooltip.info.title}</div>
+            <div className="text-slate-200">{tooltip.info.detail}</div>
+          </div>,
+          document.body
+        )
+        : null}
     </div>
   );
 }
