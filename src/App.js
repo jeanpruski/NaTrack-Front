@@ -687,6 +687,23 @@ export default function App() {
     }, 1000);
   }, [isAuth]);
 
+  const verifyAndLogin = async (payload) => {
+    const startedAt = Date.now();
+    setAuthTransition(true);
+    if (authTransitionTimerRef.current) clearTimeout(authTransitionTimerRef.current);
+    try {
+      await login(payload);
+    } catch (e) {
+      const elapsed = Date.now() - startedAt;
+      const minMs = 400;
+      if (elapsed < minMs) {
+        await new Promise((resolve) => setTimeout(resolve, minMs - elapsed));
+      }
+      setAuthTransition(false);
+      throw e;
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (authTransitionTimerRef.current) clearTimeout(authTransitionTimerRef.current);
@@ -1633,7 +1650,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.7
+            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.8
           </span>
         </div>
 
@@ -1986,7 +2003,7 @@ export default function App() {
         onClose={() => setShowEditModal(false)}
         isBusy={isBusy}
         isAuth={isAuth}
-        verifyAndLogin={login}
+        verifyAndLogin={verifyAndLogin}
         logout={editLogout}
         sessions={canEditSelected ? userSessions : sessions.filter((s) => s.user_id === user?.id)}
         readOnly={!canEditSelected}

@@ -221,6 +221,15 @@ export function GlobalDashboard({
     (n) => !n.read_at && (n.type === "challenge_start" || n.type === "event_start")
   );
   const unreadNotifications = adminNotifOverride || realUnreadNotifications;
+  const latestUnreadNotification = useMemo(() => {
+    if (!unreadNotifications.length) return null;
+    return [...unreadNotifications].sort((a, b) => {
+      const aTs = dayjs(a?.created_at || 0).valueOf();
+      const bTs = dayjs(b?.created_at || 0).valueOf();
+      if (aTs !== bTs) return bTs - aTs;
+      return String(b?.id || "").localeCompare(String(a?.id || ""));
+    })[0];
+  }, [unreadNotifications]);
   const hasUnreadNotif = realUnreadNotifications.length > 0;
 
   const formatEventDate = (value) => {
@@ -308,9 +317,11 @@ export function GlobalDashboard({
     return Math.max(0, diff);
   };
 
-  const cardNotification = unreadNotifications.find(
-    (n) => n.type === "event_start" || n.type === "challenge_start"
-  );
+  const cardNotification =
+    latestUnreadNotification &&
+    (latestUnreadNotification.type === "event_start" || latestUnreadNotification.type === "challenge_start")
+      ? latestUnreadNotification
+      : null;
   const fullUsers = allUsers && allUsers.length ? allUsers : users;
   const cardBot =
     cardNotification?.meta?.bot_id
@@ -439,7 +450,7 @@ export function GlobalDashboard({
       dueIsEvent,
     };
   }, [cardNotification, cardBot, activeChallenge]);
-  const showCardNotif = !!cardNotification && unreadNotifications.length === 1 && cardBot;
+  const showCardNotif = !!cardNotification && cardBot;
   const isAdminTestNotif = Array.isArray(adminNotifOverride) && adminNotifOverride.length > 0;
   const canCancelChallenge =
     !!onCancelChallenge &&
@@ -666,8 +677,8 @@ export function GlobalDashboard({
                             </div>
                           </div>,
                         ]
-                      : unreadNotifications.length
-                        ? unreadNotifications.map((n) => (
+                      : latestUnreadNotification
+                        ? [latestUnreadNotification].map((n) => (
                           <div key={n.id} className="flex flex-col gap-1">
                             <div className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">
                               {n.title || "Notification"}
@@ -940,7 +951,7 @@ export function GlobalDashboard({
                                   >
                                     {row.userName}
                                   </span>
-                                  <span className="ml-2 text-xs italic text-slate-500 dark:text-slate-400">
+                                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
                                     ({row.dateLabel})
                                   </span>
                                 </span>
@@ -1003,7 +1014,7 @@ export function GlobalDashboard({
                                       : "text-slate-900 dark:text-slate-100"
                                   }`}
                                 >
-                                  {row.userName} <span className="text-xs italic text-slate-500 dark:text-slate-400">({row.dateLabel})</span>
+                                  {row.userName} <span className="text-xs text-slate-500 dark:text-slate-400">({row.dateLabel})</span>
                                 </div>
                                 <div className="mt-1 flex items-center gap-2 truncate text-xs text-slate-500 dark:text-slate-400">
                                   {row.challengeType === "defi" ? (

@@ -14,6 +14,7 @@ export function UserHoloCard({
   autoTiltOnMobile = true,
   autoTiltVariant = "default",
   leftAlignDetailsDesktop = false,
+  disableTilt = false,
 }) {
   const showBackOnlySafe = Boolean(showBackOnly);
   const displayName = user?.name || "Utilisateur";
@@ -56,7 +57,7 @@ export function UserHoloCard({
   const PERSPECTIVE = 700;
 
   useEffect(() => {
-    if (!autoTiltOnMobile) {
+    if (disableTilt || !autoTiltOnMobile) {
       setAutoTilt(false);
       return;
     }
@@ -65,7 +66,7 @@ export function UserHoloCard({
     update();
     mq.addEventListener?.("change", update);
     return () => mq.removeEventListener?.("change", update);
-  }, [autoTiltOnMobile]);
+  }, [autoTiltOnMobile, disableTilt]);
 
   const toRgba = (hex, alpha) => {
     if (!hex) return "";
@@ -236,7 +237,7 @@ export function UserHoloCard({
     >
       <div
         ref={cardRef}
-        {...(!autoTilt
+        {...(!autoTilt && !disableTilt
           ? {
               onPointerDown: (evt) => {
                 isPointerDownRef.current = true;

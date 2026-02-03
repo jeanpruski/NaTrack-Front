@@ -244,14 +244,6 @@ export function UserCardsPage({
               className="relative w-full max-w-[360px] mx-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => setPreviewUser(null)}
-                className="absolute -top-12 right-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-white/20"
-                aria-label="Fermer la carte"
-              >
-                Fermer
-              </button>
               <UserHoloCard
                 user={previewUser}
                 nfDecimal={nfDecimal}
@@ -349,7 +341,7 @@ export function UserCardsPage({
             id={`card-item-${u.id}`}
             className={[
               "flex flex-col items-center gap-2",
-              compactView ? "md:w-[220px] md:min-w-[200px] md:gap-1" : "w-[360px] min-w-[342px]",
+              compactView ? "md:w-[220px] md:min-w-[200px] md:gap-1 md:h-[330px]" : "w-[360px] min-w-[342px]",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -359,7 +351,7 @@ export function UserCardsPage({
                 if (!compactView) return;
                 setPreviewUser(u);
               }}
-              className={`relative ${compactView ? "md:scale-[0.62] md:origin-top md:-my-12 md:cursor-zoom-in" : ""} ${
+              className={`relative ${compactView ? "md:scale-[0.62] md:origin-top md:-my-12 md:translate-y-[52px] md:cursor-zoom-in" : ""} ${
                 highlightId === String(u.id)
                   ? "rounded-[22px] drop-shadow-[0_22px_70px_rgba(14,165,233,0.6)] drop-shadow-[0_0_130px_rgba(14,165,233,0.5)]"
                   : ""
@@ -380,6 +372,7 @@ export function UserCardsPage({
                 minSpinnerMs={500}
                 userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
                 showBackOnly={isLockedBot(u)}
+                disableTilt={compactView}
                 autoTiltVariant="soft"
                 userRankInfo={{
                   index: u?.is_bot ? botRankById.get(u.id) : userRankById.get(u.id),
