@@ -36,6 +36,8 @@ export function GlobalDashboard({
   rangeLabel,
   modeLabel,
   mode,
+  range,
+  activeSeasonNumber = null,
   users,
   allUsers,
   totalsByUser,
@@ -61,8 +63,79 @@ export function GlobalDashboard({
   const [showNotifInfo, setShowNotifInfo] = useState(false);
   const [showCardPreview, setShowCardPreview] = useState(false);
   const [showBotsInPodium, setShowBotsInPodium] = useState(false);
+  const [showMoreRecent, setShowMoreRecent] = useState(false);
   const [notifAnchorRect] = useState(null);
   const [adminNotifOverride, setAdminNotifOverride] = useState(null);
+  const showRecentActivityCard = useMemo(() => {
+    if (range === "all" || range === "month" || range === "3m") return true;
+    if (String(range || "").startsWith("season:") && activeSeasonNumber !== null && activeSeasonNumber !== undefined) {
+      return String(range) === `season:${activeSeasonNumber}`;
+    }
+    return false;
+  }, [range, activeSeasonNumber]);
+  const userNameById = useMemo(() => {
+    const map = new Map();
+    const pool = (allUsers && allUsers.length ? allUsers : users) || [];
+    pool.forEach((u) => {
+      if (u?.id !== undefined && u?.id !== null) map.set(String(u.id), u.name || "Utilisateur");
+    });
+    return map;
+  }, [allUsers, users]);
+  const userById = useMemo(() => {
+    const map = new Map();
+    const pool = (allUsers && allUsers.length ? allUsers : users) || [];
+    pool.forEach((u) => {
+      if (u?.id !== undefined && u?.id !== null) map.set(String(u.id), u);
+    });
+    return map;
+  }, [allUsers, users]);
+  const userIsBotById = useMemo(() => {
+    const map = new Map();
+    const pool = (allUsers && allUsers.length ? allUsers : users) || [];
+    pool.forEach((u) => {
+      if (u?.id !== undefined && u?.id !== null) map.set(String(u.id), Boolean(u?.is_bot));
+    });
+    return map;
+  }, [allUsers, users]);
+  const recentActivities = useMemo(() => {
+    const list = (sessions || []).filter((s) => {
+      const isBot =
+        s?.is_bot !== undefined
+          ? Boolean(s.is_bot)
+          : userIsBotById.get(String(s?.user_id)) || false;
+      return !isBot;
+    });
+    list.sort((a, b) => {
+      const aTs = dayjs(a?.date || a?.created_at || 0).valueOf();
+      const bTs = dayjs(b?.date || b?.created_at || 0).valueOf();
+      if (aTs !== bTs) return bTs - aTs;
+      return String(b?.id || "").localeCompare(String(a?.id || ""));
+    });
+    return list.map((s) => {
+      const userName = s?.user_name || userNameById.get(String(s?.user_id)) || "Utilisateur";
+      const challengeCompleted = Boolean(s?.challenge_completed || s?.challengeCompleted);
+      const challenge = s?.challenge || s?.challenge_info || null;
+      const challengeName =
+        (challenge?.event_name || challenge?.bot_name || challenge?.bot?.name || challenge?.name || "").trim() || null;
+      const targetMetersRaw =
+        challenge?.target_distance_m ??
+        challenge?.distance_m ??
+        (Number.isFinite(Number(challenge?.target_km)) ? Number(challenge.target_km) * 1000 : null);
+      const targetMeters = Number.isFinite(Number(targetMetersRaw)) ? Number(targetMetersRaw) : null;
+      const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
+      return {
+        id: s?.id ?? `${userName}-${s?.date || ""}-${s?.distance || ""}`,
+        userId: s?.user_id ?? null,
+        userName,
+        challengeLabel: challengeCompleted && challengeName ? challengeName : "—",
+        kmLabel: distanceKm !== null ? `${formatKmFixed(distanceKm)} km` : "—",
+        targetLabel: challengeCompleted && targetMeters !== null ? `${formatKmFixed(targetMeters / 1000)} km` : "—",
+      };
+    });
+  }, [sessions, userIsBotById, userNameById]);
+  const recentActivitiesShown = useMemo(() => {
+    return recentActivities.slice(0, showMoreRecent ? 20 : 3);
+  }, [recentActivities, showMoreRecent]);
   const buildAdminNotification = (kind) => {
     const pool = (allUsers && allUsers.length ? allUsers : users) || [];
     const bots = pool.filter((u) => Boolean(u?.is_bot));
@@ -757,6 +830,109 @@ export function GlobalDashboard({
             </div>
           </div>
         </Reveal>
+        {showRecentActivityCard && (
+          <Reveal as="section">
+            <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
+              <div className="flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="inline-flex items-center gap-2">
+                    <Medal size={18} />
+                    Dernières activités
+                  </span>
+                </h2>
+                {recentActivities.length > 3 && (
+                  <div className="flex w-full justify-end md:w-auto md:justify-start">
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreRecent((v) => !v)}
+                      className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                    >
+                      {showMoreRecent ? "Afficher moins" : "Afficher plus"}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                {!recentActivities.length ? (
+                  <div className="text-sm text-slate-600 dark:text-slate-300">Aucune activité récente.</div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto hidden md:block">
+                      <div className="min-w-[520px]">
+                        <div className="grid grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                          <span>Utilisateur</span>
+                          <span>Défi / événement</span>
+                          <span className="text-right">Distance</span>
+                          <span className="text-right">Objectif</span>
+                        </div>
+                        <div className="mt-2 grid gap-2">
+                        {recentActivitiesShown.map((row) => (
+                            (() => {
+                              const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+                              return (
+                                <button
+                                key={row.id}
+                                type="button"
+                                onClick={() => {
+                                  if (!targetUser) return;
+                                  onSelectUser?.(targetUser);
+                                }}
+                                disabled={!targetUser}
+                                className={`grid w-full grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr] items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
+                                  targetUser
+                                    ? "border-slate-200/60 bg-white/90 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80"
+                                    : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
+                                }`}
+                              >
+                                <span className="truncate font-medium text-slate-900 dark:text-slate-100">{row.userName}</span>
+                                <span className="truncate">{row.challengeLabel}</span>
+                                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</span>
+                                <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
+                              </button>
+                              );
+                            })()
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid gap-2 md:hidden">
+                      {recentActivitiesShown.map((row) => (
+                        (() => {
+                          const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+                          return (
+                            <button
+                          key={row.id}
+                              type="button"
+                              onClick={() => {
+                                if (!targetUser) return;
+                                onSelectUser?.(targetUser);
+                              }}
+                              disabled={!targetUser}
+                              className={`w-full rounded-xl border px-3 py-3 text-left text-sm text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
+                                targetUser
+                                  ? "border-slate-200/60 bg-white/90 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80"
+                                  : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="truncate font-semibold text-slate-900 dark:text-slate-100">{row.userName}</div>
+                                <div className="font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</div>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+                                <span className="truncate">{row.challengeLabel}</span>
+                                <span>Objectif: {row.targetLabel}</span>
+                              </div>
+                            </button>
+                          );
+                        })()
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </Reveal>
+        )}
         {totals.length > 0 && (
           <Reveal as="section">
             <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
@@ -822,10 +998,14 @@ export function GlobalDashboard({
                           : "ring-orange-300/70 dark:ring-orange-300/45";
                     const baseBg = u.isBot
                       ? "bg-rose-50/80 dark:bg-rose-900/30"
-                      : "bg-slate-50/80 dark:bg-slate-800/50";
+                      : showBotsInPodium
+                        ? "bg-emerald-50/80 dark:bg-emerald-900/30"
+                        : "bg-slate-50/80 dark:bg-slate-800/50";
                     const hoverBg = u.isBot
                       ? "hover:bg-rose-100 dark:hover:bg-rose-900/40"
-                      : "hover:bg-slate-100 dark:hover:bg-slate-800";
+                      : showBotsInPodium
+                        ? "hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                        : "hover:bg-slate-100 dark:hover:bg-slate-800";
                     return (
                       <button
                         key={u.id}

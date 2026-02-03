@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 import { Trophy } from "lucide-react";
@@ -31,6 +32,8 @@ export function UserCardsPage({
   const [resultsError, setResultsError] = useState("");
   const [highlightId, setHighlightId] = useState(null);
   const [highlightFadeOut, setHighlightFadeOut] = useState(false);
+  const [compactView, setCompactView] = useState(false);
+  const [previewUser, setPreviewUser] = useState(null);
   const sorted = useMemo(() => {
     return [...users].sort((a, b) => {
       const aTime = new Date(a.created_at || 0).getTime();
@@ -215,6 +218,10 @@ export function UserCardsPage({
     };
   }, [scrollToUserId]);
 
+  useEffect(() => {
+    if (!compactView && previewUser) setPreviewUser(null);
+  }, [compactView, previewUser]);
+
   if (!users.length) {
     return (
       <div className="px-4 xl:px-8 pt-4 pb-8 text-sm text-slate-600 dark:text-slate-300">
@@ -225,6 +232,45 @@ export function UserCardsPage({
 
   return (
     <div className="px-4 xl:px-8 pt-4 pb-8">
+      {previewUser && typeof document !== "undefined"
+        ? createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <div
+              className="absolute inset-0 bg-black/80"
+              onClick={() => setPreviewUser(null)}
+              aria-hidden="true"
+            />
+            <div
+              className="relative w-full max-w-[360px] mx-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setPreviewUser(null)}
+                className="absolute -top-12 right-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-white/20"
+                aria-label="Fermer la carte"
+              >
+                Fermer
+              </button>
+              <UserHoloCard
+                user={previewUser}
+                nfDecimal={nfDecimal}
+                showBotAverage
+                minSpinnerMs={500}
+                userRunningAvgKm={!previewUser?.is_bot ? userRunningAvgById?.get(previewUser.id) : null}
+                showBackOnly={isLockedBot(previewUser)}
+                autoTiltVariant="soft"
+                userRankInfo={{
+                  index: previewUser?.is_bot ? botRankById.get(previewUser.id) : userRankById.get(previewUser.id),
+                  total: previewUser?.is_bot ? botsOnlyByDate.length : usersOnlyByDate.length,
+                }}
+                elevated
+              />
+            </div>
+          </div>,
+          document.body
+        )
+        : null}
       <InfoPopover
         open={showResultsInfo}
         onClose={() => setShowResultsInfo(false)}
@@ -278,15 +324,42 @@ export function UserCardsPage({
         offsetY={-15}
         offsetYMobile={0}
       />
-      <div className="mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-4">
+      {isAdmin && (
+        <div className="mb-3 hidden md:flex justify-end">
+          <button
+            type="button"
+            onClick={() => setCompactView((v) => !v)}
+            className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+          >
+            {compactView ? "Vue normale" : "Vue compacte"}
+          </button>
+        </div>
+      )}
+      <div
+        className={[
+          "mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-4",
+          compactView ? "md:gap-3" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {visibleUsers.map((u) => (
           <div
             key={u.id}
             id={`card-item-${u.id}`}
-            className="flex w-[360px] min-w-[342px] flex-col items-center gap-2"
+            className={[
+              "flex flex-col items-center gap-2",
+              compactView ? "md:w-[220px] md:min-w-[200px] md:gap-1" : "w-[360px] min-w-[342px]",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             <div
-              className={`relative ${
+              onClick={() => {
+                if (!compactView) return;
+                setPreviewUser(u);
+              }}
+              className={`relative ${compactView ? "md:scale-[0.62] md:origin-top md:-my-12 md:cursor-zoom-in" : ""} ${
                 highlightId === String(u.id)
                   ? "rounded-[22px] drop-shadow-[0_22px_70px_rgba(14,165,233,0.6)] drop-shadow-[0_0_130px_rgba(14,165,233,0.5)]"
                   : ""
@@ -314,7 +387,7 @@ export function UserCardsPage({
                 }}
               />
             </div>
-            {!(u?.is_bot && !showAllCardsFront && !unlockedBotIds.has(String(u.id))) ? (
+            {!compactView && !(u?.is_bot && !showAllCardsFront && !unlockedBotIds.has(String(u.id))) ? (
               <div className="flex items-center gap-2">
                 {!!u?.is_bot && (
                   <button

@@ -1590,7 +1590,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.5
+            {seasonLabel ? `${seasonLabel} · ` : ""}Alpha 0.0.6
           </span>
         </div>
 
@@ -1788,6 +1788,8 @@ export default function App() {
                   rangeLabel={rangeLabel}
                   modeLabel={modeLabel}
                   mode={mode}
+                  range={range}
+                  activeSeasonNumber={activeSeasonInfo?.season_number ?? null}
                   users={globalUsers}
                   allUsers={usersForRouting}
                   totalsByUser={monthTotalsByUser}
