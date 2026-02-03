@@ -132,11 +132,14 @@ export function GlobalDashboard({
         (Number.isFinite(Number(challenge?.target_km)) ? Number(challenge.target_km) * 1000 : null);
       const targetMeters = Number.isFinite(Number(targetMetersRaw)) ? Number(targetMetersRaw) : null;
       const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
+      const dateValue = s?.date || s?.created_at || null;
+      const dateLabel = dateValue ? dayjs(dateValue).locale("fr").format("D MMM") : "—";
       return {
         id: s?.id ?? `${userName}-${s?.date || ""}-${s?.distance || ""}`,
         sessionId: s?.id ?? null,
         userId: s?.user_id ?? null,
         userName,
+        dateLabel,
         challengeLabel: challengeCompleted && challengeName ? challengeName : "—",
         challengeType: challengeCompleted && challengeType ? challengeType : null,
         kmLabel: distanceKm !== null ? `${formatKmFixed(distanceKm)} km` : "—",
@@ -533,18 +536,7 @@ export function GlobalDashboard({
                                       <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
                                         {(() => {
                                           const title = cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`;
-                                          const parts = title.split(" – ");
-                                          if (parts.length >= 2) {
-                                            return (
-                                              <div className="space-y-1">
-                                                <div>{parts[0]}</div>
-                                                <div className="text-base font-medium text-slate-600 dark:text-slate-300">
-                                                  {parts.slice(1).join(" – ")}
-                                                </div>
-                                              </div>
-                                            );
-                                          }
-                                          return title;
+                                          return title.split(" – ")[0] || title;
                                         })()}
                                       </div>
                                     </div>
@@ -938,14 +930,19 @@ export function GlobalDashboard({
                                     />
                                   </button>
                                 </div>
-                                <span
-                                  className={`truncate font-medium ${
-                                    currentUserId && row.userId && String(row.userId) === String(currentUserId)
-                                      ? "text-emerald-600 dark:text-emerald-300"
-                                      : "text-slate-900 dark:text-slate-100"
-                                  }`}
-                                >
-                                  {row.userName}
+                                <span className="truncate font-medium">
+                                  <span
+                                    className={`${
+                                      currentUserId && row.userId && String(row.userId) === String(currentUserId)
+                                        ? "text-emerald-600 dark:text-emerald-300"
+                                        : "text-slate-900 dark:text-slate-100"
+                                    }`}
+                                  >
+                                    {row.userName}
+                                  </span>
+                                  <span className="ml-2 text-xs italic text-slate-500 dark:text-slate-400">
+                                    ({row.dateLabel})
+                                  </span>
                                 </span>
                                 <span className="flex items-center gap-2 truncate">
                                   {row.challengeType === "defi" ? (
@@ -1006,7 +1003,7 @@ export function GlobalDashboard({
                                       : "text-slate-900 dark:text-slate-100"
                                   }`}
                                 >
-                                  {row.userName}
+                                  {row.userName} <span className="text-xs italic text-slate-500 dark:text-slate-400">({row.dateLabel})</span>
                                 </div>
                                 <div className="mt-1 flex items-center gap-2 truncate text-xs text-slate-500 dark:text-slate-400">
                                   {row.challengeType === "defi" ? (
