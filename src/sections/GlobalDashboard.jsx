@@ -125,6 +125,7 @@ export function GlobalDashboard({
       const challenge = s?.challenge || s?.challenge_info || null;
       const challengeName =
         (challenge?.event_name || challenge?.bot_name || challenge?.bot?.name || challenge?.name || "").trim() || null;
+      const challengeType = String(challenge?.type || "").toLowerCase() || null;
       const targetMetersRaw =
         challenge?.target_distance_m ??
         challenge?.distance_m ??
@@ -137,6 +138,7 @@ export function GlobalDashboard({
         userId: s?.user_id ?? null,
         userName,
         challengeLabel: challengeCompleted && challengeName ? challengeName : "—",
+        challengeType: challengeCompleted && challengeType ? challengeType : null,
         kmLabel: distanceKm !== null ? `${formatKmFixed(distanceKm)} km` : "—",
         targetLabel: challengeCompleted && targetMeters !== null ? `${formatKmFixed(targetMeters / 1000)} km` : "—",
         likesCount: Number(s?.likes_count) || 0,
@@ -905,7 +907,9 @@ export function GlobalDashboard({
                                 }}
                                 className={`grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
                                   targetUser
-                                    ? "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                                    ? isMine
+                                      ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
+                                      : "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
                                     : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
                                 }`}
                               >
@@ -934,8 +938,25 @@ export function GlobalDashboard({
                                     />
                                   </button>
                                 </div>
-                                <span className="truncate font-medium text-slate-900 dark:text-slate-100">{row.userName}</span>
-                                <span className="truncate">{row.challengeLabel}</span>
+                                <span
+                                  className={`truncate font-medium ${
+                                    currentUserId && row.userId && String(row.userId) === String(currentUserId)
+                                      ? "text-emerald-600 dark:text-emerald-300"
+                                      : "text-slate-900 dark:text-slate-100"
+                                  }`}
+                                >
+                                  {row.userName}
+                                </span>
+                                <span className="flex items-center gap-2 truncate">
+                                  {row.challengeType === "defi" ? (
+                                    <Swords size={14} className="text-rose-600 dark:text-rose-300" />
+                                  ) : row.challengeType === "rare" ? (
+                                    <Sparkles size={14} className="text-sky-600 dark:text-sky-300" />
+                                  ) : row.challengeType === "evenement" ? (
+                                    <Newspaper size={14} className="text-amber-500 dark:text-amber-300" />
+                                  ) : null}
+                                  <span className="truncate">{row.challengeLabel}</span>
+                                </span>
                                 <span className="text-right font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</span>
                                 <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
                               </div>
@@ -947,8 +968,8 @@ export function GlobalDashboard({
                     <div className="grid gap-2 md:hidden">
                       {recentActivitiesShown.map((row) => {
                         const targetUser = row.userId ? userById.get(String(row.userId)) : null;
-                        const isMine =
-                          currentUserId && row.userId && String(row.userId) === String(currentUserId);
+                          const isMine =
+                            currentUserId && row.userId && String(row.userId) === String(currentUserId);
                         const canLike = !!(isAuth && !isMine && row.sessionId);
                         const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
                         const handleOpen = () => {
@@ -970,14 +991,33 @@ export function GlobalDashboard({
                             }}
                             className={`w-full rounded-xl border px-3 py-3 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
                               targetUser
-                                ? "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                                ? isMine
+                                  ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
+                                  : "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
                                 : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
                             }`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="truncate font-semibold text-slate-900 dark:text-slate-100">{row.userName}</div>
-                                <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{row.challengeLabel}</div>
+                                <div
+                                  className={`truncate font-semibold ${
+                                    currentUserId && row.userId && String(row.userId) === String(currentUserId)
+                                      ? "text-emerald-600 dark:text-emerald-300"
+                                      : "text-slate-900 dark:text-slate-100"
+                                  }`}
+                                >
+                                  {row.userName}
+                                </div>
+                                <div className="mt-1 flex items-center gap-2 truncate text-xs text-slate-500 dark:text-slate-400">
+                                  {row.challengeType === "defi" ? (
+                                    <Swords size={12} className="text-rose-600 dark:text-rose-300" />
+                                  ) : row.challengeType === "rare" ? (
+                                    <Sparkles size={12} className="text-sky-600 dark:text-sky-300" />
+                                  ) : row.challengeType === "evenement" ? (
+                                    <Newspaper size={12} className="text-amber-500 dark:text-amber-300" />
+                                  ) : null}
+                                  <span className="truncate">{row.challengeLabel}</span>
+                                </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</div>
