@@ -165,6 +165,7 @@ export default function App() {
 
   const [loadingPhase, setLoadingPhase] = useState("loading"); // loading | fading | done
   const [error, setError] = useState("");
+  const [sessionLikes, setSessionLikes] = useState(() => new Set());
 
   useEffect(() => {
     let alive = true;
@@ -317,6 +318,19 @@ export default function App() {
 
   const [cardResults, setCardResults] = useState([]);
   const [selectedUserCardCounts, setSelectedUserCardCounts] = useState(null);
+  const refreshSessionLikes = async () => {
+    if (!isAuth || !authToken) {
+      setSessionLikes(new Set());
+      return;
+    }
+    try {
+      const data = await apiGet("/me/session-likes", authToken);
+      const ids = Array.isArray(data) ? data : data?.session_ids || [];
+      setSessionLikes(new Set(ids.map((id) => String(id))));
+    } catch {
+      setSessionLikes(new Set());
+    }
+  };
   const refreshCardResults = async () => {
     if (!isAuth || !authToken) {
       setCardResults([]);
@@ -354,6 +368,33 @@ export default function App() {
     } finally {
       refreshNotifications();
       refreshChallenge();
+    }
+  };
+
+  const toggleSessionLike = async (sessionId) => {
+    if (!isAuth || !authToken || !sessionId) return;
+    try {
+      const res = await apiJson("POST", `/sessions/${sessionId}/like`, null, authToken);
+      const liked = !!res?.liked;
+      const likesCount = Number(res?.likes_count);
+      setSessionLikes((prev) => {
+        const next = new Set(prev);
+        const key = String(sessionId);
+        if (liked) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+      if (Number.isFinite(likesCount)) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            String(s.id) === String(sessionId)
+              ? { ...s, likes_count: likesCount }
+              : s
+          )
+        );
+      }
+    } catch {
+      showToast("Impossible de liker");
     }
   };
 
@@ -407,6 +448,7 @@ export default function App() {
     if (!isAuth) {
       setNotifications([]);
       setNotificationsError("");
+      setSessionLikes(new Set());
     }
   }, [isAuth]);
 
@@ -415,6 +457,7 @@ export default function App() {
     refreshNotifications();
     refreshChallenge();
     refreshCardResults();
+    refreshSessionLikes();
   }, [isAuth, authToken]);
 
 
@@ -1796,6 +1839,9 @@ export default function App() {
                   sessions={globalShownSessions}
                   nfDecimal={nfDecimal}
                   onSelectUser={handleSelectUser}
+                  currentUserId={user?.id || null}
+                  sessionLikes={sessionLikes}
+                  onToggleSessionLike={toggleSessionLike}
                   onOpenCards={() => {
                     setShowCardsPage(true);
                     setRouteState({ type: "cards", slug: null });

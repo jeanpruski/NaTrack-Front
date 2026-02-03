@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
-import { Bell, BellRing, Bot, Check, Medal, Newspaper, Sparkles, Swords, Trophy, User } from "lucide-react";
+import { Bell, BellRing, Bot, Check, Heart, Medal, Newspaper, Sparkles, Swords, Trophy, User } from "lucide-react";
 import { Reveal } from "../components/Reveal";
 import { InfoPopover } from "../components/InfoPopover";
 import { UserHoloCard } from "../components/UserHoloCard";
@@ -38,12 +38,15 @@ export function GlobalDashboard({
   mode,
   range,
   activeSeasonNumber = null,
+  currentUserId = null,
   users,
   allUsers,
   totalsByUser,
   sessions,
   nfDecimal,
   onSelectUser,
+  sessionLikes,
+  onToggleSessionLike,
   onOpenCards,
   onOpenNewsArchive,
   onCancelChallenge,
@@ -66,6 +69,10 @@ export function GlobalDashboard({
   const [showMoreRecent, setShowMoreRecent] = useState(false);
   const [notifAnchorRect] = useState(null);
   const [adminNotifOverride, setAdminNotifOverride] = useState(null);
+  const sessionLikesSet = useMemo(() => {
+    if (sessionLikes instanceof Set) return sessionLikes;
+    return new Set(sessionLikes || []);
+  }, [sessionLikes]);
   const showRecentActivityCard = useMemo(() => {
     if (range === "all" || range === "month" || range === "3m") return true;
     if (String(range || "").startsWith("season:") && activeSeasonNumber !== null && activeSeasonNumber !== undefined) {
@@ -125,11 +132,13 @@ export function GlobalDashboard({
       const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
       return {
         id: s?.id ?? `${userName}-${s?.date || ""}-${s?.distance || ""}`,
+        sessionId: s?.id ?? null,
         userId: s?.user_id ?? null,
         userName,
         challengeLabel: challengeCompleted && challengeName ? challengeName : "—",
         kmLabel: distanceKm !== null ? `${formatKmFixed(distanceKm)} km` : "—",
         targetLabel: challengeCompleted && targetMeters !== null ? `${formatKmFixed(targetMeters / 1000)} km` : "—",
+        likesCount: Number(s?.likes_count) || 0,
       };
     });
   }, [sessions, userIsBotById, userNameById]);
@@ -858,74 +867,147 @@ export function GlobalDashboard({
                 ) : (
                   <>
                     <div className="overflow-x-auto hidden md:block">
-                      <div className="min-w-[520px]">
-                        <div className="grid grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                      <div className="min-w-[540px]">
+                        <div className="grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                          <span>Likes</span>
                           <span>Utilisateur</span>
                           <span>Défi / événement</span>
                           <span className="text-right">Distance</span>
                           <span className="text-right">Objectif</span>
                         </div>
                         <div className="mt-2 grid gap-2">
-                        {recentActivitiesShown.map((row) => (
-                            (() => {
-                              const targetUser = row.userId ? userById.get(String(row.userId)) : null;
-                              return (
-                                <button
+                          {recentActivitiesShown.map((row) => {
+                            const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+                            const isMine =
+                              currentUserId && row.userId && String(row.userId) === String(currentUserId);
+                            const canLike = !!(isAuth && !isMine && row.sessionId);
+                            const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
+                            const handleOpen = () => {
+                              if (!targetUser) return;
+                              onSelectUser?.(targetUser);
+                            };
+                            return (
+                              <div
                                 key={row.id}
-                                type="button"
-                                onClick={() => {
+                                role={targetUser ? "button" : undefined}
+                                tabIndex={targetUser ? 0 : -1}
+                                onClick={handleOpen}
+                                onKeyDown={(e) => {
                                   if (!targetUser) return;
-                                  onSelectUser?.(targetUser);
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    handleOpen();
+                                  }
                                 }}
-                                disabled={!targetUser}
-                                className={`grid w-full grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr] items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
+                                className={`grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
                                   targetUser
-                                    ? "border-slate-200/60 bg-white/90 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80"
+                                    ? "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
                                     : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
                                 }`}
                               >
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={!canLike}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!canLike) return;
+                                      onToggleSessionLike?.(row.sessionId);
+                                    }}
+                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition ${
+                                      canLike
+                                        ? "text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30"
+                                        : "text-slate-400"
+                                    }`}
+                                    aria-label={isLiked ? "Retirer le like" : "Liker l'activité"}
+                                  >
+                                    <span>{row.likesCount}</span>
+                                    <Heart
+                                      size={14}
+                                      className={`${isLiked ? "text-rose-500 fill-rose-500" : "text-slate-400"} ${
+                                        canLike ? "" : "opacity-60"
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
                                 <span className="truncate font-medium text-slate-900 dark:text-slate-100">{row.userName}</span>
                                 <span className="truncate">{row.challengeLabel}</span>
                                 <span className="text-right font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</span>
                                 <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
-                              </button>
-                              );
-                            })()
-                          ))}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
                     <div className="grid gap-2 md:hidden">
-                      {recentActivitiesShown.map((row) => (
-                        (() => {
-                          const targetUser = row.userId ? userById.get(String(row.userId)) : null;
-                          return (
-                            <button
-                          key={row.id}
-                              type="button"
-                              onClick={() => {
-                                if (!targetUser) return;
-                                onSelectUser?.(targetUser);
-                              }}
-                              disabled={!targetUser}
-                              className={`w-full rounded-xl border px-3 py-3 text-left text-sm text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
-                                targetUser
-                                  ? "border-slate-200/60 bg-white/90 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80"
-                                  : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-3">
+                      {recentActivitiesShown.map((row) => {
+                        const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+                        const isMine =
+                          currentUserId && row.userId && String(row.userId) === String(currentUserId);
+                        const canLike = !!(isAuth && !isMine && row.sessionId);
+                        const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
+                        const handleOpen = () => {
+                          if (!targetUser) return;
+                          onSelectUser?.(targetUser);
+                        };
+                        return (
+                          <div
+                            key={row.id}
+                            role={targetUser ? "button" : undefined}
+                            tabIndex={targetUser ? 0 : -1}
+                            onClick={handleOpen}
+                            onKeyDown={(e) => {
+                              if (!targetUser) return;
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleOpen();
+                              }
+                            }}
+                            className={`w-full rounded-xl border px-3 py-3 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
+                              targetUser
+                                ? "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                                : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
                                 <div className="truncate font-semibold text-slate-900 dark:text-slate-100">{row.userName}</div>
+                                <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{row.challengeLabel}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
                                 <div className="font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</div>
+                                <button
+                                  type="button"
+                                  disabled={!canLike}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!canLike) return;
+                                    onToggleSessionLike?.(row.sessionId);
+                                  }}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition ${
+                                    canLike
+                                      ? "text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30"
+                                      : "text-slate-400"
+                                  }`}
+                                  aria-label={isLiked ? "Retirer le like" : "Liker l'activité"}
+                                >
+                                  <span>{row.likesCount}</span>
+                                  <Heart
+                                    size={14}
+                                    className={`${isLiked ? "text-rose-500 fill-rose-500" : "text-slate-400"} ${
+                                      canLike ? "" : "opacity-60"
+                                    }`}
+                                  />
+                                </button>
                               </div>
-                              <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                                <span className="truncate">{row.challengeLabel}</span>
-                                <span>Objectif: {row.targetLabel}</span>
-                              </div>
-                            </button>
-                          );
-                        })()
-                      ))}
+                            </div>
+                            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                              Objectif: {row.targetLabel}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </>
                 )}
