@@ -67,6 +67,7 @@ export function GlobalDashboard({
   const [showCardPreview, setShowCardPreview] = useState(false);
   const [showBotsInPodium, setShowBotsInPodium] = useState(false);
   const [showMoreRecent, setShowMoreRecent] = useState(false);
+  const [showMorePodium, setShowMorePodium] = useState(false);
   const [notifAnchorRect] = useState(null);
   const [adminNotifOverride, setAdminNotifOverride] = useState(null);
   const sessionLikesSet = useMemo(() => {
@@ -274,6 +275,9 @@ export function GlobalDashboard({
       }))
       .sort((a, b) => b.total - a.total);
   }, [podiumUsers, totalsByUser]);
+  const podiumShown = useMemo(() => {
+    return totals.slice(0, showMorePodium ? totals.length : 3);
+  }, [totals, showMorePodium]);
 
   const monthKeys = useMemo(() => buildMonthKeys(sessions), [sessions]);
   const sparklineMap = useMemo(() => {
@@ -1047,8 +1051,8 @@ export function GlobalDashboard({
                     </span>
                   </span>
                 </h2>
-                {hasBotsInRanking && (
-                  <div className="flex w-full justify-end md:w-auto md:justify-start">
+                <div className="flex w-full justify-end gap-2 md:w-auto md:justify-start">
+                  {hasBotsInRanking && (
                     <button
                       type="button"
                       onClick={() => setShowBotsInPodium((prev) => !prev)}
@@ -1056,12 +1060,21 @@ export function GlobalDashboard({
                     >
                       {showBotsInPodium ? "Masquer les bots" : "Afficher les bots"}
                     </button>
-                  </div>
-                )}
+                  )}
+                  {totals.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowMorePodium((prev) => !prev)}
+                      className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                    >
+                      {showMorePodium ? "Afficher moins" : "Afficher plus"}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="p-4">
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {totals.map((u, index) => {
+                  {podiumShown.map((u, index) => {
                     const sparkValues = sparklineMap.get(u.id) || [];
                     const points = buildSparklinePoints(sparkValues, 96, 40);
                     const isPodium = index < 3;
