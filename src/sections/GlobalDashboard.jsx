@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { Bell, BellRing, Bot, Check, Heart, Medal, Newspaper, Sparkles, Swords, Trophy, User } from "lucide-react";
 import { Reveal } from "../components/Reveal";
 import { InfoPopover } from "../components/InfoPopover";
 import { UserHoloCard } from "../components/UserHoloCard";
 import { formatKmFixed } from "../utils/appUtils";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.locale("fr");
 
 function buildMonthKeys(sessions) {
   const set = new Set();
@@ -106,6 +112,12 @@ export function GlobalDashboard({
     return map;
   }, [allUsers, users]);
   const recentActivities = useMemo(() => {
+    const toParis = (value) => {
+      if (!value) return null;
+      const raw = String(value);
+      const parsed = dayjs.utc(raw).tz("Europe/Paris");
+      return parsed.isValid() ? parsed : dayjs(raw);
+    };
     const list = (sessions || []).filter((s) => {
       const isBot =
         s?.is_bot !== undefined
@@ -114,8 +126,8 @@ export function GlobalDashboard({
       return !isBot;
     });
     list.sort((a, b) => {
-      const aTs = dayjs(a?.date || a?.created_at || 0).valueOf();
-      const bTs = dayjs(b?.date || b?.created_at || 0).valueOf();
+      const aTs = toParis(a?.created_at || a?.date || 0)?.valueOf() || 0;
+      const bTs = toParis(b?.created_at || b?.date || 0)?.valueOf() || 0;
       if (aTs !== bTs) return bTs - aTs;
       return String(b?.id || "").localeCompare(String(a?.id || ""));
     });
@@ -132,15 +144,22 @@ export function GlobalDashboard({
         (Number.isFinite(Number(challenge?.target_km)) ? Number(challenge.target_km) * 1000 : null);
       const targetMeters = Number.isFinite(Number(targetMetersRaw)) ? Number(targetMetersRaw) : null;
       const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
-      const dateValue = s?.date || s?.created_at || null;
-      const dateLabel = dateValue ? dayjs(dateValue).locale("fr").format("D MMM") : "—";
+      const dateValue = s?.created_at || s?.date || null;
+      const dateLabel = dateValue
+        ? toParis(dateValue)?.format(s?.created_at ? "D MMM HH:mm" : "D MMM")
+        : "—";
       return {
         id: s?.id ?? `${userName}-${s?.date || ""}-${s?.distance || ""}`,
         sessionId: s?.id ?? null,
         userId: s?.user_id ?? null,
         userName,
         dateLabel,
-        challengeLabel: challengeCompleted && challengeName ? challengeName : "—",
+        challengeLabel:
+          challengeCompleted && challengeName
+            ? challengeType === "evenement"
+              ? `Event ${challengeName}`
+              : challengeName
+            : "—",
         challengeType: challengeCompleted && challengeType ? challengeType : null,
         kmLabel: distanceKm !== null ? `${formatKmFixed(distanceKm)} km` : "—",
         targetLabel: challengeCompleted && targetMeters !== null ? `${formatKmFixed(targetMeters / 1000)} km` : "—",
@@ -880,7 +899,7 @@ export function GlobalDashboard({
                         <div className="grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                           <span>Likes</span>
                           <span>Utilisateur</span>
-                          <span>Défi / événement</span>
+                          <span>Challenge</span>
                           <span className="text-right">Distance</span>
                           <span className="text-right">Objectif</span>
                         </div>
