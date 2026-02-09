@@ -155,21 +155,42 @@ export function UserCardsPage({
       try {
         const data = await apiGet(`/me/card-results?bot_id=${encodeURIComponent(resultsUser.id)}`, authToken);
         if (!alive) return;
+        const formatResultDate = (value) => {
+          if (!value) return "—";
+          const d = dayjs(value);
+          if (!d.isValid()) return String(value);
+          const formatted = d.locale("fr").format("dddd D MMMM YYYY");
+          const parts = formatted.split(" ");
+          if (parts.length < 3) {
+            return formatted.replace(/^./, (c) => c.toUpperCase());
+          }
+          const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+          const day = cap(parts[0]);
+          const month = cap(parts[2]);
+          return `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`.trim();
+        };
         const rows = (Array.isArray(data) ? data : []).map((row, idx) => {
           const km = Number(row.distance_m) / 1000;
           const kmLabel = Number.isFinite(km) ? `${formatKmFixed(km)} km` : "—";
           const targetKm = Number(row.target_distance_m) / 1000;
           const targetLabel = Number.isFinite(targetKm) ? `${formatKmFixed(targetKm)} km` : "—";
-          const date = row.achieved_at ? dayjs(row.achieved_at) : null;
-          const dateLabel = date && date.isValid()
-            ? date.locale("fr").format("dddd D MMMM YYYY")
-            : (row.achieved_at || "—");
+          const rawDate = row.achieved_at_time || row.achieved_at || null;
+          const date = rawDate ? dayjs(rawDate) : null;
+          const dateLabel = formatResultDate(rawDate || row.achieved_at);
+          const ts = date && date.isValid() ? date.valueOf() : null;
           return {
             id: row.id || idx,
             dateLabel,
             kmLabel,
             targetLabel,
+            ts,
           };
+        });
+        rows.sort((a, b) => {
+          const aTs = a.ts ?? 0;
+          const bTs = b.ts ?? 0;
+          if (aTs !== bTs) return bTs - aTs;
+          return String(b.id || "").localeCompare(String(a.id || ""));
         });
         if (!rows.length) {
           setResultsRows([]);
@@ -288,22 +309,47 @@ export function UserCardsPage({
                       <div className="px-2 text-sm text-slate-600 dark:text-slate-300">{resultsMessage}</div>
                     ) : (
                       <div className="px-2">
-                        <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-400">
-                          <span>Date</span>
-                          <span className="text-right">Distance</span>
-                          <span className="text-right">Objectif</span>
-                        </div>
-                        <div className="mt-3 grid gap-2">
+                        <div className="sm:hidden grid gap-2">
                           {resultsRows.map((row) => (
                             <div
                               key={row.id}
-                              className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-200"
+                              className="rounded-2xl border border-slate-200/60 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-200"
                             >
-                              <span>{row.dateLabel}</span>
-                              <span className="text-right font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</span>
-                              <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
+                              <div className="text-[11px] uppercase tracking-wide text-slate-400">Date</div>
+                              <div className="text-slate-900 dark:text-slate-100">{row.dateLabel}</div>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                <div className="rounded-xl border border-slate-200/60 bg-white/80 px-3 py-2 text-left shadow-sm dark:border-slate-700/60 dark:bg-slate-900/80">
+                                  <div className="text-[10px] uppercase tracking-wide text-slate-400">Distance</div>
+                                  <div className="font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</div>
+                                </div>
+                                <div className="rounded-xl border border-slate-200/60 bg-white/80 px-3 py-2 text-left shadow-sm dark:border-slate-700/60 dark:bg-slate-900/80">
+                                  <div className="text-[10px] uppercase tracking-wide text-slate-400">Objectif</div>
+                                  <div className="text-slate-500 dark:text-slate-400">{row.targetLabel}</div>
+                                </div>
+                              </div>
                             </div>
                           ))}
+                        </div>
+                        <div className="hidden sm:block">
+                          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-400">
+                            <span>Date</span>
+                            <span className="text-left">Distance</span>
+                            <span className="text-left">Objectif</span>
+                          </div>
+                          <div className="mt-3 grid gap-2">
+                            {resultsRows.map((row) => (
+                              <div
+                                key={row.id}
+                                className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700/60 dark:bg-slate-900/80 dark:text-slate-200"
+                              >
+                                <span className="text-slate-900 dark:text-slate-100">{row.dateLabel}</span>
+                                <span className="text-left font-semibold text-slate-900 dark:text-slate-100">
+                                  {row.kmLabel}
+                                </span>
+                                <span className="text-left text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -373,6 +419,7 @@ export function UserCardsPage({
                 userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
                 showBackOnly={isLockedBot(u)}
                 disableTilt={compactView}
+                compact={compactView}
                 autoTiltVariant="soft"
                 userRankInfo={{
                   index: u?.is_bot ? botRankById.get(u.id) : userRankById.get(u.id),

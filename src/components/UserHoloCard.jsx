@@ -15,6 +15,7 @@ export function UserHoloCard({
   autoTiltVariant = "default",
   leftAlignDetailsDesktop = false,
   disableTilt = false,
+  compact = false,
 }) {
   const showBackOnlySafe = Boolean(showBackOnly);
   const displayName = user?.name || "Utilisateur";
@@ -37,7 +38,7 @@ export function UserHoloCard({
   const showBotAverageValue = showBotAverage && isBot && Number.isFinite(Number(botAvgDistance)) && Number(botAvgDistance) > 0;
   const showUserAverageValue = !isBot && Number.isFinite(Number(userRunningAvgKm)) && Number(userRunningAvgKm) > 0;
   const showAverage = showBotAverageValue || showUserAverageValue;
-  const averageLabel = "Moyenne";
+  const averageLabel = isBot && botCardType === "evenement" ? "Distance" : "Moyenne";
   const averageValue = showBotAverageValue ? Number(botAvgDistance) : Number(userRunningAvgKm);
 
   const [cardTilt, setCardTilt] = useState({ x: 0, y: 0, active: false });
@@ -301,13 +302,20 @@ export function UserHoloCard({
           }}
         >
             <div className={`transition-opacity duration-300 ${showContent ? "opacity-100" : "opacity-0"}`}>
-            <div className="relative mt-2 flex items-center justify-end gap-1 text-right text-2xl font-black tracking-tight">
-            {isBot ? (
-              <Bot size={18} className="text-rose-300" />
-            ) : (
-              <User size={18} className="text-emerald-200" />
-            )}
-            <span>{displayName}</span>
+            <div
+              className={[
+                "relative mt-2 flex items-center justify-end gap-1 text-right font-black tracking-tight",
+                compact ? "text-lg" : "text-2xl",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {isBot ? (
+                <Bot size={compact ? 18 : 18} className="text-rose-300" />
+              ) : (
+                <User size={compact ? 18 : 18} className="text-emerald-200" />
+              )}
+              <span>{displayName}</span>
             </div>
             <div
             className="relative mt-3 aspect-[6/4] w-full overflow-visible rounded-[22px] border border-emerald-200/40 bg-gradient-to-br from-slate-900 via-emerald-900/40 to-slate-900"
