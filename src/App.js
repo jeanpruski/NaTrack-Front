@@ -237,6 +237,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!dashboardRefreshing) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [dashboardRefreshing]);
+
+  useEffect(() => {
     let alive = true;
     setNewsLoading(true);
     setNewsError("");
