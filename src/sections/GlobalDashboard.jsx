@@ -121,6 +121,11 @@ export function GlobalDashboard({
       const parsed = dayjs.utc(raw).tz("Europe/Paris");
       return parsed.isValid() ? parsed : dayjs(raw);
     };
+    const hasTimePart = (value) => {
+      if (!value) return false;
+      const raw = String(value);
+      return /[T\s]\d{1,2}:\d{2}/.test(raw);
+    };
     const list = (sessions || []).filter((s) => {
       const isBot =
         s?.is_bot !== undefined
@@ -129,8 +134,16 @@ export function GlobalDashboard({
       return !isBot;
     });
     list.sort((a, b) => {
-      const aTs = toParis(a?.created_at || a?.date || 0)?.valueOf() || 0;
-      const bTs = toParis(b?.created_at || b?.date || 0)?.valueOf() || 0;
+      const aRaw = a?.created_at || a?.date || null;
+      const bRaw = b?.created_at || b?.date || null;
+      const aDay = toParis(aRaw)?.startOf("day").valueOf() || 0;
+      const bDay = toParis(bRaw)?.startOf("day").valueOf() || 0;
+      if (aDay !== bDay) return bDay - aDay;
+      const aHasTime = hasTimePart(aRaw);
+      const bHasTime = hasTimePart(bRaw);
+      if (aHasTime !== bHasTime) return aHasTime ? 1 : -1;
+      const aTs = toParis(aRaw)?.valueOf() || 0;
+      const bTs = toParis(bRaw)?.valueOf() || 0;
       if (aTs !== bTs) return bTs - aTs;
       return String(b?.id || "").localeCompare(String(a?.id || ""));
     });
