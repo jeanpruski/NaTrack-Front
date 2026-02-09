@@ -131,6 +131,14 @@ export default function App() {
   const didInitHistoryRef = useRef(false);
   const scrollTopSoonRef = useRef(null);
   const mainRef = useRef(null);
+  const pullRefreshRef = useRef({ active: false, startY: 0, lastY: 0, mouse: false });
+  const dashboardRefreshingRef = useRef(false);
+  const wheelPullRef = useRef({ accum: 0, lastTs: 0, startTs: 0 });
+  const wheelResetTimerRef = useRef(null);
+  const wheelTriggerTimerRef = useRef(null);
+  const lastRefreshTsRef = useRef(0);
+  const refreshSpinnerSinceRef = useRef(0);
+  const lastNonZeroScrollTsRef = useRef(0);
 
   useEffect(() => {
     scrollTopSoonRef.current = () => {
@@ -162,6 +170,9 @@ export default function App() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState("");
   const [newsFilter, setNewsFilter] = useState("future");
+  const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [pullActive, setPullActive] = useState(false);
 
   const [loadingPhase, setLoadingPhase] = useState("loading"); // loading | fading | done
   const [error, setError] = useState("");
@@ -297,6 +308,40 @@ export default function App() {
     return () => { alive = false; };
   }, []);
 
+  const refreshSessions = async () => {
+    try {
+      const data = await apiGet("/sessions");
+      const normalized = (data || []).map((s) => normalizeSession(s));
+      setSessions(normalized);
+      setError("");
+    } catch (e) {
+      setError("Chargement impossible : " + (e?.message || "erreur inconnue"));
+    }
+  };
+
+  const refreshUsers = async () => {
+    try {
+      const data = await apiGet("/users/public");
+      setUsers(data || []);
+    } catch {
+      setUsers([]);
+    }
+  };
+
+  const refreshNews = async () => {
+    setNewsLoading(true);
+    setNewsError("");
+    try {
+      const data = await apiGet("/news");
+      setNewsItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setNewsItems([]);
+      setNewsError(e?.message || "Erreur news");
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
   const refreshNotifications = async () => {
     if (!isAuth || !authToken) {
       setNotifications([]);
@@ -356,6 +401,36 @@ export default function App() {
       setActiveChallenge(null);
     }
   };
+
+  const refreshGlobalDashboard = async ({ includeNews = true } = {}) => {
+    const now = Date.now();
+    if (now - lastRefreshTsRef.current < 1200) return;
+    if (dashboardRefreshingRef.current) return;
+    lastRefreshTsRef.current = now;
+    dashboardRefreshingRef.current = true;
+    refreshSpinnerSinceRef.current = now;
+    setDashboardRefreshing(true);
+    try {
+      const tasks = [
+        refreshSessions(),
+        refreshUsers(),
+        refreshNotifications(),
+        refreshChallenge(),
+        refreshSessionLikes(),
+      ];
+      if (includeNews) tasks.push(refreshNews());
+      await Promise.all(tasks);
+    } finally {
+      const elapsed = Date.now() - (refreshSpinnerSinceRef.current || 0);
+      const remaining = Math.max(1500 - elapsed, 0);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+      setDashboardRefreshing(false);
+      dashboardRefreshingRef.current = false;
+    }
+  };
+
   const cancelChallenge = async () => {
     if (!isAuth || !authToken) return;
     try {
@@ -1475,10 +1550,6 @@ export default function App() {
     updateUrlFilters(nextMode, range, !showNewsArchive);
   };
 
-  if (loadingPhase !== "done" || FORCE_LOADING) {
-    return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;
-  }
-
   const handleSelectUser = (u) => {
     setSelectedUser(u);
     const slug = getUserSlug(u);
@@ -1529,10 +1600,49 @@ export default function App() {
     }
   };
 
-  const onSwipeStart = (e) => {
-    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
+  const getMainScrollTop = () => {
+    if (mainRef.current) return mainRef.current.scrollTop || 0;
+    const scrollingEl = document.scrollingElement || document.documentElement;
+    return scrollingEl ? scrollingEl.scrollTop || 0 : 0;
+  };
+
+  const startPullRefresh = (clientY) => {
+    if (!isGlobalView || showCardsPage || showNewsArchive) return false;
+    if (dashboardRefreshingRef.current) return false;
+    if (getMainScrollTop() > 0) return false;
+    pullRefreshRef.current.active = true;
+    pullRefreshRef.current.startY = clientY;
+    pullRefreshRef.current.lastY = clientY;
+    setPullActive(true);
+    setPullDistance(0);
+    return true;
+  };
+
+  const updatePullRefresh = (clientY) => {
+    if (!pullRefreshRef.current.active) return;
+    pullRefreshRef.current.lastY = clientY;
+    const dy = Math.max(0, clientY - pullRefreshRef.current.startY);
+    const eased = Math.min(120, dy);
+    setPullDistance(eased);
+  };
+
+  const endPullRefresh = () => {
+    if (!pullRefreshRef.current.active) return;
+    const dy = pullRefreshRef.current.lastY - pullRefreshRef.current.startY;
+    pullRefreshRef.current.active = false;
+    pullRefreshRef.current.mouse = false;
+    setPullActive(false);
+    setPullDistance(0);
+    if (dy > 60) {
+      refreshGlobalDashboard({ includeNews: false });
+    }
+  };
+
+  const onTouchStart = (e) => {
     const touch = e.touches?.[0];
     if (!touch) return;
+    if (startPullRefresh(touch.clientY)) return;
+    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
     swipeRef.current = {
       x: touch.clientX,
       y: touch.clientY,
@@ -1543,10 +1653,14 @@ export default function App() {
     };
   };
 
-  const onSwipeMove = (e) => {
-    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
+  const onTouchMove = (e) => {
     const touch = e.touches?.[0];
     if (!touch) return;
+    if (pullRefreshRef.current.active) {
+      updatePullRefresh(touch.clientY);
+      return;
+    }
+    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
     const dx = touch.clientX - swipeRef.current.x;
     const dy = touch.clientY - swipeRef.current.y;
     swipeRef.current.lastX = touch.clientX;
@@ -1556,7 +1670,11 @@ export default function App() {
     }
   };
 
-  const onSwipeEnd = () => {
+  const onTouchEnd = () => {
+    if (pullRefreshRef.current.active) {
+      endPullRefresh();
+      return;
+    }
     if (!showCardsPage && !selectedUser && !showNewsArchive) return;
     const { x, y, lastX, lastY, t, moved } = swipeRef.current || {};
     if (!moved) return;
@@ -1568,6 +1686,146 @@ export default function App() {
       handleBack();
     }
   };
+
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return;
+    if (startPullRefresh(e.clientY)) {
+      pullRefreshRef.current.mouse = true;
+    }
+  };
+
+  const onMouseMove = (e) => {
+    if (!pullRefreshRef.current.active || !pullRefreshRef.current.mouse) return;
+    updatePullRefresh(e.clientY);
+  };
+
+  const onMouseUp = () => {
+    if (!pullRefreshRef.current.active || !pullRefreshRef.current.mouse) return;
+    endPullRefresh();
+  };
+
+  const onMouseLeave = () => {
+    if (!pullRefreshRef.current.active || !pullRefreshRef.current.mouse) return;
+    endPullRefresh();
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleTouchStart = (e) => onTouchStart(e);
+    const handleTouchMove = (e) => onTouchMove(e);
+    const handleTouchEnd = () => onTouchEnd();
+    const handleTouchCancel = () => onTouchEnd();
+    const handleMouseDown = (e) => {
+      onMouseDown(e);
+    };
+    const handleMouseMove = (e) => onMouseMove(e);
+    const handleMouseUp = () => {
+      onMouseUp();
+    };
+    const handleScroll = () => {
+      if (getMainScrollTop() > 0) lastNonZeroScrollTsRef.current = Date.now();
+    };
+    const handleWheel = (e) => {
+      if (!isGlobalView || showCardsPage || showNewsArchive) return;
+      if (dashboardRefreshingRef.current) return;
+      if (getMainScrollTop() > 0) return;
+      if (Date.now() - lastNonZeroScrollTsRef.current < 250) return;
+      const delta = e.deltaY || 0;
+      if (Math.abs(delta) < 10) return;
+      if (delta < 0) {
+        const nowTs = Date.now();
+        const idleGap = nowTs - (wheelPullRef.current.lastTs || 0);
+        if (!wheelPullRef.current.startTs || idleGap > 260) {
+          wheelPullRef.current.startTs = nowTs;
+          if (wheelTriggerTimerRef.current) clearTimeout(wheelTriggerTimerRef.current);
+          wheelTriggerTimerRef.current = setTimeout(() => {
+            if (!isGlobalView || showCardsPage || showNewsArchive) return;
+            if (dashboardRefreshingRef.current) return;
+            if (getMainScrollTop() > 0) return;
+            const lastGap = Date.now() - (wheelPullRef.current.lastTs || 0);
+            if (lastGap > 220) return;
+            if (wheelPullRef.current.accum >= 60) {
+              wheelPullRef.current.accum = 0;
+              wheelPullRef.current.startTs = 0;
+              setPullActive(false);
+              setPullDistance(0);
+              refreshGlobalDashboard({ includeNews: false });
+            }
+          }, 800);
+        }
+        wheelPullRef.current.lastTs = nowTs;
+        wheelPullRef.current.accum += Math.abs(delta);
+      } else if (wheelPullRef.current.accum > 0) {
+        wheelPullRef.current.accum = Math.max(0, wheelPullRef.current.accum - delta * 0.15);
+      } else {
+        return;
+      }
+      const eased = Math.min(60, wheelPullRef.current.accum);
+      if (wheelPullRef.current.accum >= 60) {
+        setPullActive(true);
+        setPullDistance(eased);
+      }
+      if (wheelResetTimerRef.current) clearTimeout(wheelResetTimerRef.current);
+      wheelResetTimerRef.current = setTimeout(() => {
+        wheelPullRef.current.accum = 0;
+        wheelPullRef.current.startTs = 0;
+        if (wheelTriggerTimerRef.current) {
+          clearTimeout(wheelTriggerTimerRef.current);
+          wheelTriggerTimerRef.current = null;
+        }
+        setPullActive(false);
+        setPullDistance(0);
+      }, 1100);
+      if (wheelPullRef.current.accum > 60) {
+        const nowTs = Date.now();
+        const duration = nowTs - (wheelPullRef.current.startTs || 0);
+        if (duration < 800) return;
+        if (nowTs - (wheelPullRef.current.lastTs || 0) > 220) return;
+        wheelPullRef.current.accum = 0;
+        wheelPullRef.current.startTs = 0;
+        if (wheelTriggerTimerRef.current) {
+          clearTimeout(wheelTriggerTimerRef.current);
+          wheelTriggerTimerRef.current = null;
+        }
+        setPullActive(false);
+        setPullDistance(0);
+        refreshGlobalDashboard({ includeNews: false });
+      }
+    };
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+    window.addEventListener("touchcancel", handleTouchCancel);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchCancel);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("wheel", handleWheel);
+      if (wheelResetTimerRef.current) {
+        clearTimeout(wheelResetTimerRef.current);
+        wheelResetTimerRef.current = null;
+      }
+      if (wheelTriggerTimerRef.current) {
+        clearTimeout(wheelTriggerTimerRef.current);
+        wheelTriggerTimerRef.current = null;
+      }
+    };
+  }, [isGlobalView, showCardsPage, showNewsArchive, dashboardRefreshing]);
+
+  if (loadingPhase !== "done" || FORCE_LOADING) {
+    return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;
+  }
+
   return (
     <div
       className="
@@ -1658,9 +1916,6 @@ export default function App() {
           ref={mainRef}
           className="flex-1 pb-6"
           style={{ paddingTop: "var(--main-top-padding)" }}
-          onTouchStart={onSwipeStart}
-          onTouchMove={onSwipeMove}
-          onTouchEnd={onSwipeEnd}
         >
           <div className={showCardsPage ? "mx-auto" : "mx-auto max-w-[1550px]"}>
             {error && (
@@ -1859,6 +2114,9 @@ export default function App() {
                   currentUserId={user?.id || null}
                   sessionLikes={sessionLikes}
                   onToggleSessionLike={toggleSessionLike}
+                  isRefreshing={dashboardRefreshing}
+                  pullActive={pullActive}
+                  pullDistance={pullDistance}
                   onOpenCards={() => {
                     setShowCardsPage(true);
                     setRouteState({ type: "cards", slug: null });
