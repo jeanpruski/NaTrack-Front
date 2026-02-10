@@ -289,7 +289,7 @@ export function UserHoloCard({
         <img
           src="/nacards-logo.png"
           alt="NaCards"
-          className={`pointer-events-none absolute -left-3 top-3 z-20 h-14 w-auto drop-shadow-[0_6px_16px_rgba(16,185,129,0.5)] ${
+          className={`pointer-events-none absolute -left-3 top-4 z-20 h-12 w-auto drop-shadow-[0_6px_16px_rgba(16,185,129,0.5)] ${
             hideBrandMarks ? "opacity-0" : "opacity-100"
           }`}
         />

@@ -336,6 +336,10 @@ export function GlobalDashboard({
         const defi = Number(u?.cards_defi) || 0;
         const rare = Number(u?.cards_rare) || 0;
         const evenement = Number(u?.cards_evenement) || 0;
+        const lastRaw = u?.cards_last_at || null;
+        const lastLabel = lastRaw && dayjs(lastRaw).isValid()
+          ? dayjs(lastRaw).locale("fr").format("D MMM YYYY")
+          : null;
         const score = defi + evenement * 2 + rare * 3;
         return {
           id: u?.id,
@@ -343,6 +347,7 @@ export function GlobalDashboard({
           defi,
           rare,
           evenement,
+          lastLabel,
           score,
           user: u,
         };
@@ -1381,6 +1386,11 @@ export function GlobalDashboard({
                               }`}
                             >
                               {row.name}
+                              {row.lastLabel ? (
+                                <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">
+                                  ({row.lastLabel})
+                                </span>
+                              ) : null}
                             </span>
                             <span className="flex items-center justify-center gap-1 text-slate-700 dark:text-slate-200">
                               <Swords size={14} className="text-rose-600 dark:text-rose-300" />
@@ -1420,6 +1430,11 @@ export function GlobalDashboard({
                             }`}
                           >
                             {row.name}
+                            {row.lastLabel ? (
+                              <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">
+                                ({row.lastLabel})
+                              </span>
+                            ) : null}
                           </div>
                           <div className="flex items-center gap-3 text-xs">
                             <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-200">
