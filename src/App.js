@@ -139,6 +139,7 @@ export default function App() {
   const lastRefreshTsRef = useRef(0);
   const refreshSpinnerSinceRef = useRef(0);
   const lastNonZeroScrollTsRef = useRef(0);
+  const pullToRefreshEnabled = false;
 
   useEffect(() => {
     scrollTopSoonRef.current = () => {
@@ -1617,9 +1618,18 @@ export default function App() {
   };
 
   const startPullRefresh = (clientY) => {
+    if (!pullToRefreshEnabled) return false;
     if (!isGlobalView || showCardsPage || showNewsArchive) return false;
     if (dashboardRefreshingRef.current) return false;
     if (getMainScrollTop() > 0) return false;
+    if (clientY > 80) return false;
+    if (typeof window !== "undefined" && window.__DEBUG_PULL) {
+      console.log("[pull] start", {
+        clientY,
+        mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
+        docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
+      });
+    }
     pullRefreshRef.current.active = true;
     pullRefreshRef.current.startY = clientY;
     pullRefreshRef.current.lastY = clientY;
@@ -1634,6 +1644,14 @@ export default function App() {
     const dy = Math.max(0, clientY - pullRefreshRef.current.startY);
     const eased = Math.min(120, dy);
     setPullDistance(eased);
+    if (typeof window !== "undefined" && window.__DEBUG_PULL) {
+      console.log("[pull] move", {
+        clientY,
+        dy,
+        mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
+        docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
+      });
+    }
   };
 
   const endPullRefresh = () => {
@@ -1643,6 +1661,13 @@ export default function App() {
     pullRefreshRef.current.mouse = false;
     setPullActive(false);
     setPullDistance(0);
+    if (typeof window !== "undefined" && window.__DEBUG_PULL) {
+      console.log("[pull] end", {
+        dy,
+        mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
+        docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
+      });
+    }
     if (dy > 60) {
       refreshGlobalDashboard({ includeNews: false });
     }
@@ -1725,6 +1750,16 @@ export default function App() {
     const handleTouchMove = (e) => onTouchMove(e);
     const handleTouchEnd = () => onTouchEnd();
     const handleTouchCancel = () => onTouchEnd();
+    const handleTouchStartDebug = (e) => {
+      if (typeof window !== "undefined" && window.__DEBUG_PULL) {
+        const touch = e.touches?.[0];
+        console.log("[pull] touchstart", {
+          clientY: touch?.clientY ?? null,
+          mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
+          docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
+        });
+      }
+    };
     const handleMouseDown = (e) => {
       onMouseDown(e);
     };
@@ -1736,6 +1771,7 @@ export default function App() {
       if (getMainScrollTop() > 0) lastNonZeroScrollTsRef.current = Date.now();
     };
     const handleWheel = (e) => {
+      if (!pullToRefreshEnabled) return;
       if (!isGlobalView || showCardsPage || showNewsArchive) return;
       if (dashboardRefreshingRef.current) return;
       if (getMainScrollTop() > 0) return;
@@ -1803,6 +1839,7 @@ export default function App() {
       }
     };
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchstart", handleTouchStartDebug, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
     window.addEventListener("touchend", handleTouchEnd);
     window.addEventListener("touchcancel", handleTouchCancel);
@@ -1813,6 +1850,7 @@ export default function App() {
     window.addEventListener("wheel", handleWheel, { passive: true });
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchstart", handleTouchStartDebug);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("touchcancel", handleTouchCancel);
