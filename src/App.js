@@ -34,7 +34,7 @@ import {
   readFilterParams,
   readRouteState,
 } from "./utils/routing";
-import { formatKmFixed, getInitialRange, normType, parseDateValue } from "./utils/appUtils";
+import { formatKmFixed, getInitialRange, normType, normalizeSession, parseDateValue } from "./utils/appUtils";
 
 dayjs.locale("fr");
 dayjs.extend(customParseFormat);

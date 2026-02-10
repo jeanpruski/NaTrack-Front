@@ -2,6 +2,7 @@
   "name": "natrack",
   "version": "0.1.0",
   "private": true,
+  "proxy": "https://natrack.prjski.com",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.4",
