@@ -1029,8 +1029,8 @@ export function GlobalDashboard({
                                 className={`grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
                                   targetUser
                                     ? isMine
-                                      ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
-                                      : "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                                      ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:border-slate-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:border-slate-500 dark:hover:bg-emerald-900/30"
+                                      : "cursor-pointer border-slate-200/60 bg-white/90 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:border-slate-500 dark:hover:bg-slate-900"
                                     : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
                                 }`}
                               >
@@ -1118,8 +1118,8 @@ export function GlobalDashboard({
                             className={`w-full rounded-xl border px-3 py-3 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
                               targetUser
                                 ? isMine
-                                  ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
-                                  : "cursor-pointer border-slate-200/60 bg-white/90 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                                  ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:border-slate-300 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:border-slate-500 dark:hover:bg-emerald-900/30"
+                                  : "cursor-pointer border-slate-200/60 bg-white/90 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:border-slate-500 dark:hover:bg-slate-900"
                                 : "border-slate-200/40 bg-white/60 opacity-60 dark:border-slate-700/40 dark:bg-slate-900/50"
                             }`}
                           >
@@ -1355,7 +1355,7 @@ export function GlobalDashboard({
                 <>
                   <div className="hidden md:block overflow-x-auto">
                     <div className="min-w-[560px]">
-                      <div className="grid grid-cols-[1.5fr_0.6fr_0.6fr_0.6fr_0.6fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                      <div className="grid grid-cols-[2fr_0.35fr_0.35fr_0.35fr_0.35fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                         <span>Utilisateur</span>
                         <span className="text-center">Défi</span>
                         <span className="text-center">Rare</span>
@@ -1367,10 +1367,10 @@ export function GlobalDashboard({
                           <button
                             key={row.id}
                             onClick={() => row.user && onSelectUser?.(row.user)}
-                            className={`grid grid-cols-[1.5fr_0.6fr_0.6fr_0.6fr_0.6fr] items-center gap-3 rounded-xl border px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md dark:text-slate-200 ${
+                            className={`grid grid-cols-[2fr_0.35fr_0.35fr_0.35fr_0.35fr] items-center gap-3 rounded-xl border px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md dark:text-slate-200 ${
                               currentUserId && String(row.id) === String(currentUserId)
-                                ? "border-emerald-200/70 bg-emerald-50/70 hover:bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
-                                : "border-slate-200/60 bg-white/90 hover:bg-slate-50 dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                                ? "border-emerald-200/70 bg-emerald-50/70 hover:border-slate-300 hover:bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:border-slate-500 dark:hover:bg-emerald-900/30"
+                                : "border-slate-200/60 bg-white/90 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:border-slate-500 dark:hover:bg-slate-900"
                             }`}
                           >
                             <span
@@ -1407,8 +1407,8 @@ export function GlobalDashboard({
                         onClick={() => row.user && onSelectUser?.(row.user)}
                         className={`rounded-2xl border px-4 py-3 text-sm text-slate-700 shadow-sm transition dark:text-slate-200 ${
                           currentUserId && String(row.id) === String(currentUserId)
-                            ? "border-emerald-200/70 bg-emerald-50/70 hover:bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
-                            : "border-slate-200/60 bg-white/90 hover:bg-slate-50 dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                            ? "border-emerald-200/70 bg-emerald-50/70 hover:border-slate-300 hover:bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:border-slate-500 dark:hover:bg-emerald-900/30"
+                            : "border-slate-200/60 bg-white/90 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:border-slate-500 dark:hover:bg-slate-900"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-3">
