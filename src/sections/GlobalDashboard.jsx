@@ -127,6 +127,39 @@ export function GlobalDashboard({
       const raw = String(value);
       return /[T\s]\d{1,2}:\d{2}/.test(raw);
     };
+    const buildSessionTs = (sessionDate, createdAt) => {
+      const sessionHasTime = hasTimePart(sessionDate);
+      if (sessionHasTime) {
+        const ts = toParis(sessionDate)?.valueOf();
+        return Number.isFinite(ts) ? ts : 0;
+      }
+      const baseDay = toParis(sessionDate)?.startOf("day");
+      if (!baseDay || !baseDay.isValid()) return 0;
+      const created = toParis(createdAt);
+      if (created && created.isValid()) {
+        return baseDay
+          .hour(created.hour())
+          .minute(created.minute())
+          .second(created.second())
+          .millisecond(created.millisecond())
+          .valueOf();
+      }
+      return baseDay.valueOf();
+    };
+    const buildDateLabel = (sessionDate, createdAt) => {
+      if (!sessionDate) return "—";
+      const sessionHasTime = hasTimePart(sessionDate);
+      if (sessionHasTime) {
+        return toParis(sessionDate)?.format("D MMM HH:mm") || "—";
+      }
+      const base = toParis(sessionDate);
+      if (!base || !base.isValid()) return "—";
+      const created = toParis(createdAt);
+      if (created && created.isValid()) {
+        return `${base.format("D MMM")} ${created.format("HH:mm")}`;
+      }
+      return base.format("D MMM");
+    };
     const list = (sessions || []).filter((s) => {
       const isBot =
         s?.is_bot !== undefined
@@ -135,16 +168,13 @@ export function GlobalDashboard({
       return !isBot;
     });
     list.sort((a, b) => {
-      const aRaw = a?.created_at || a?.date || null;
-      const bRaw = b?.created_at || b?.date || null;
+      const aRaw = a?.date || null;
+      const bRaw = b?.date || null;
       const aDay = toParis(aRaw)?.startOf("day").valueOf() || 0;
       const bDay = toParis(bRaw)?.startOf("day").valueOf() || 0;
       if (aDay !== bDay) return bDay - aDay;
-      const aHasTime = hasTimePart(aRaw);
-      const bHasTime = hasTimePart(bRaw);
-      if (aHasTime !== bHasTime) return aHasTime ? 1 : -1;
-      const aTs = toParis(aRaw)?.valueOf() || 0;
-      const bTs = toParis(bRaw)?.valueOf() || 0;
+      const aTs = buildSessionTs(a?.date, a?.created_at);
+      const bTs = buildSessionTs(b?.date, b?.created_at);
       if (aTs !== bTs) return bTs - aTs;
       return String(b?.id || "").localeCompare(String(a?.id || ""));
     });
@@ -161,10 +191,7 @@ export function GlobalDashboard({
         (Number.isFinite(Number(challenge?.target_km)) ? Number(challenge.target_km) * 1000 : null);
       const targetMeters = Number.isFinite(Number(targetMetersRaw)) ? Number(targetMetersRaw) : null;
       const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
-      const dateValue = s?.created_at || s?.date || null;
-      const dateLabel = dateValue
-        ? toParis(dateValue)?.format(s?.created_at ? "D MMM HH:mm" : "D MMM")
-        : "—";
+      const dateLabel = buildDateLabel(s?.date || null, s?.created_at || null);
       return {
         id: s?.id ?? `${userName}-${s?.date || ""}-${s?.distance || ""}`,
         sessionId: s?.id ?? null,
