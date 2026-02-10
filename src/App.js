@@ -1492,10 +1492,16 @@ export default function App() {
         totals[type] += 1;
       }
     });
+    const seen = { defi: new Set(), rare: new Set(), evenement: new Set() };
     (cardResults || []).forEach((r) => {
       const type = String(r?.type || "").toLowerCase();
+      const botId = r?.bot_id ?? r?.botId ?? null;
+      if (!botId) return;
       if (type === "defi" || type === "rare" || type === "evenement") {
-        counts[type] += 1;
+        if (!seen[type].has(String(botId))) {
+          seen[type].add(String(botId));
+          counts[type] += 1;
+        }
       }
     });
     return {

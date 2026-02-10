@@ -336,9 +336,9 @@ export function GlobalDashboard({
         const defi = Number(u?.cards_defi) || 0;
         const rare = Number(u?.cards_rare) || 0;
         const evenement = Number(u?.cards_evenement) || 0;
-        const lastRaw = u?.cards_last_at || null;
-        const lastLabel = lastRaw && dayjs(lastRaw).isValid()
-          ? dayjs(lastRaw).locale("fr").format("D MMM YYYY")
+        const lastUniqueRaw = u?.cards_last_unique_at || null;
+        const lastUniqueLabel = lastUniqueRaw && dayjs(lastUniqueRaw).isValid()
+          ? dayjs(lastUniqueRaw).locale("fr").format("D MMM YYYY")
           : null;
         const score = defi + evenement * 2 + rare * 3;
         return {
@@ -347,7 +347,7 @@ export function GlobalDashboard({
           defi,
           rare,
           evenement,
-          lastLabel,
+          lastLabel: lastUniqueLabel,
           score,
           user: u,
         };
