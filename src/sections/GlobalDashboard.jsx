@@ -998,7 +998,7 @@ export function GlobalDashboard({
             </div>
           </div>
         </Reveal>
-        {showRecentActivityCard && (
+        {showRecentActivityCard && recentActivities.length > 0 && (
           <Reveal as="section">
             <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
               <div className="flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
