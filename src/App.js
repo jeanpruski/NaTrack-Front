@@ -18,11 +18,23 @@ import { Toast } from "./components/Toast";
 import { InfoPopover } from "./components/InfoPopover";
 import { UserHoloCard } from "./components/UserHoloCard";
 import { useEditAuth } from "./hooks/useEditAuth";
+import { useAppActions } from "./hooks/useAppActions";
+import { useAppFilters } from "./hooks/useAppFilters";
+import { useAppGestures } from "./hooks/useAppGestures";
+import { useAppData } from "./hooks/useAppData";
 import { apiGet, apiJson } from "./utils/api";
 import { downloadCSV } from "./utils/downloadCSV";
 import { parseCSV } from "./utils/parseCSV";
 import { capFirst } from "./utils/strings";
-import { formatKmFixed, getInitialRange, normType, normalizeSession, parseDateValue } from "./utils/appUtils";
+import {
+  buildCardsPath,
+  buildNewsPath,
+  buildUserPath,
+  readCardParam,
+  readFilterParams,
+  readRouteState,
+} from "./utils/routing";
+import { formatKmFixed, getInitialRange, normType, parseDateValue } from "./utils/appUtils";
 
 dayjs.locale("fr");
 dayjs.extend(customParseFormat);
@@ -39,67 +51,40 @@ const slugify = (value) => {
 
 const getUserSlug = (user) => slugify(user?.slug || user?.name || "");
 
-const readRouteState = () => {
-  if (typeof window === "undefined") return { type: "root", slug: null };
-  const path = window.location.pathname || "/";
-  const userMatch = path.match(/^\/user\/([^/]+)\/?$/);
-  if (userMatch) return { type: "user", slug: decodeURIComponent(userMatch[1]) };
-  if (path.match(/^\/cards\/?$/)) return { type: "cards", slug: null };
-  if (path.match(/^\/events\/?$/)) return { type: "news", slug: null };
-  return { type: "root", slug: null };
-};
-
-const readCardParam = () => {
-  if (typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get("card") === "open";
-};
-
-const parseModeParam = (value) => {
-  if (!value) return null;
-  const cleaned = String(value).toLowerCase();
-  return cleaned === "all" || cleaned === "run" || cleaned === "swim" ? cleaned : null;
-};
-
-const parseRangeParam = (value) => {
-  if (!value) return null;
-  const cleaned = String(value);
-  if (["all", "month", "3m", "6m"].includes(cleaned)) return cleaned;
-  if (/^\d{4}$/.test(cleaned)) return cleaned;
-  if (cleaned.startsWith("season:")) return cleaned;
-  return null;
-};
-
-const readFilterParams = () => {
-  if (typeof window === "undefined") return { mode: null, range: null };
-  const params = new URLSearchParams(window.location.search);
-  return {
-    mode: parseModeParam(params.get("mode")),
-    range: parseRangeParam(params.get("range")),
-  };
-};
-
-const buildSearchParams = ({ withCard, modeValue, rangeValue }) => {
-  const params = new URLSearchParams();
-  if (withCard) params.set("card", "open");
-  if (modeValue) params.set("mode", modeValue);
-  if (rangeValue) params.set("range", rangeValue);
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
-};
-
-const buildUserPath = (slug, withCard = false, modeValue = null, rangeValue = null) =>
-  `/user/${encodeURIComponent(slug)}${buildSearchParams({ withCard, modeValue, rangeValue })}`;
-const buildCardsPath = (modeValue = null, rangeValue = null) =>
-  `/cards${buildSearchParams({ withCard: false, modeValue, rangeValue })}`;
-const buildNewsPath = () => "/events";
-
 /* =========================
    App principale
    ========================= */
 export default function App() {
   const FORCE_LOADING = false;
   const { token: authToken, user, isAuth, checking, login, logout: editLogout } = useEditAuth();
+  const [error, setError] = useState("");
+  const {
+    sessions,
+    setSessions,
+    users,
+    seasons,
+    activeSeasonInfo,
+    newsItems,
+    newsLoading,
+    newsError,
+    notifications,
+    notificationsLoading,
+    notificationsError,
+    activeChallenge,
+    sessionLikes,
+    cardResults,
+    refreshSessions,
+    refreshUsers,
+    refreshNews,
+    refreshNotifications,
+    refreshSessionLikes,
+    refreshCardResults,
+    refreshChallenge,
+    setNotifications,
+    setNotificationsError,
+    setSessionLikes,
+    setActiveChallenge,
+  } = useAppData({ authToken, isAuth, setError });
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCardsPage, setShowCardsPage] = useState(false);
   const [cardsFilter, setCardsFilter] = useState("mixte");
@@ -111,10 +96,6 @@ export default function App() {
   const [authTransition, setAuthTransition] = useState(false);
   const [editModalInitialTab, setEditModalInitialTab] = useState("options");
   const [showVictoryCardPreview, setShowVictoryCardPreview] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notificationsError, setNotificationsError] = useState("");
-  const [activeChallenge, setActiveChallenge] = useState(null);
   const [victoryInfo, setVictoryInfo] = useState(null);
   const toastTimerRef = useRef(null);
   const didInitScrollRef = useRef(false);
@@ -127,18 +108,12 @@ export default function App() {
   const rangeTouchedRef = useRef(false);
   const filtersTouchedRef = useRef(false);
   const forceHomeRef = useRef(false);
-  const swipeRef = useRef({ x: 0, y: 0, t: 0, moved: false });
   const didInitHistoryRef = useRef(false);
   const scrollTopSoonRef = useRef(null);
   const mainRef = useRef(null);
-  const pullRefreshRef = useRef({ active: false, startY: 0, lastY: 0, mouse: false });
   const dashboardRefreshingRef = useRef(false);
-  const wheelPullRef = useRef({ accum: 0, lastTs: 0, startTs: 0 });
-  const wheelResetTimerRef = useRef(null);
-  const wheelTriggerTimerRef = useRef(null);
   const lastRefreshTsRef = useRef(0);
   const refreshSpinnerSinceRef = useRef(0);
-  const lastNonZeroScrollTsRef = useRef(0);
   const pullToRefreshEnabled = false;
 
   useEffect(() => {
@@ -157,27 +132,18 @@ export default function App() {
     };
   }, []);
 
-  const [sessions, setSessions] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [activeSeasonInfo, setActiveSeasonInfo] = useState(null);
-  const [seasons, setSeasons] = useState([]);
   const [mode, setMode] = useState(() => readFilterParams().mode || "run");   // all | swim | run
   const [range, setRange] = useState(() => readFilterParams().range || getInitialRange()); // all | month | 6m | 3m | 2026 | 2025
   const [routeState, setRouteState] = useState(readRouteState);
   const [userCardOpen, setUserCardOpen] = useState(readCardParam);
   const [showNewsArchive, setShowNewsArchive] = useState(false);
-  const [newsItems, setNewsItems] = useState([]);
-  const [newsLoading, setNewsLoading] = useState(false);
-  const [newsError, setNewsError] = useState("");
   const [newsFilter, setNewsFilter] = useState("future");
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [pullActive, setPullActive] = useState(false);
 
   const [loadingPhase, setLoadingPhase] = useState("loading"); // loading | fading | done
-  const [error, setError] = useState("");
-  const [sessionLikes, setSessionLikes] = useState(() => new Set());
 
   useEffect(() => {
     let alive = true;
@@ -193,13 +159,7 @@ export default function App() {
     };
     (async () => {
       try {
-        const data = await apiGet("/sessions");
-        if (alive) {
-          const normalized = (data || []).map((s) => normalizeSession(s));
-          setSessions(normalized);
-        }
-      } catch (e) {
-        if (alive) setError("Chargement impossible : " + (e?.message || "erreur inconnue"));
+        await refreshSessions({ shouldUpdate: () => alive });
       } finally {
         const elapsed = Date.now() - start;
         const remaining = Math.max(1500 - elapsed, 0);
@@ -224,20 +184,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const data = await apiGet("/users/public");
-        if (alive) setUsers(data || []);
-      } catch {
-        if (!alive) return;
-        setUsers([]);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  useEffect(() => {
     if (typeof document === "undefined") return;
     if (!dashboardRefreshing) return;
     const prevOverflow = document.body.style.overflow;
@@ -246,41 +192,6 @@ export default function App() {
       document.body.style.overflow = prevOverflow;
     };
   }, [dashboardRefreshing]);
-
-  useEffect(() => {
-    let alive = true;
-    setNewsLoading(true);
-    setNewsError("");
-    (async () => {
-      try {
-        const data = await apiGet("/news");
-        if (!alive) return;
-        setNewsItems(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if (!alive) return;
-        setNewsItems([]);
-        setNewsError(e?.message || "Erreur news");
-      } finally {
-        if (alive) setNewsLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const data = await apiGet("/seasons");
-        if (!alive) return;
-        setSeasons(Array.isArray(data) ? data : []);
-      } catch {
-        if (!alive) return;
-        setSeasons([]);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
 
   useEffect(() => {
     const hasSeason =
@@ -300,118 +211,7 @@ export default function App() {
     }
   }, [activeSeasonInfo, range]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const data = await apiGet("/season/active");
-        if (!alive) return;
-        if (data && data.season_number !== null && data.season_number !== undefined) {
-          setActiveSeasonInfo(data);
-        } else {
-          setActiveSeasonInfo(null);
-        }
-      } catch {
-        if (!alive) return;
-        setActiveSeasonInfo(null);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  const refreshSessions = async () => {
-    try {
-      const data = await apiGet("/sessions");
-      const normalized = (data || []).map((s) => normalizeSession(s));
-      setSessions(normalized);
-      setError("");
-    } catch (e) {
-      setError("Chargement impossible : " + (e?.message || "erreur inconnue"));
-    }
-  };
-
-  const refreshUsers = async () => {
-    try {
-      const data = await apiGet("/users/public");
-      setUsers(data || []);
-    } catch {
-      setUsers([]);
-    }
-  };
-
-  const refreshNews = async () => {
-    setNewsLoading(true);
-    setNewsError("");
-    try {
-      const data = await apiGet("/news");
-      setNewsItems(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setNewsItems([]);
-      setNewsError(e?.message || "Erreur news");
-    } finally {
-      setNewsLoading(false);
-    }
-  };
-
-  const refreshNotifications = async () => {
-    if (!isAuth || !authToken) {
-      setNotifications([]);
-      setNotificationsError("");
-      return;
-    }
-    setNotificationsLoading(true);
-    setNotificationsError("");
-    try {
-      const data = await apiGet("/me/notifications?limit=50", authToken);
-      setNotifications(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setNotifications([]);
-      setNotificationsError(e?.message || "Erreur notifications");
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
-
-  const [cardResults, setCardResults] = useState([]);
   const [selectedUserCardCounts, setSelectedUserCardCounts] = useState(null);
-  const refreshSessionLikes = async () => {
-    if (!isAuth || !authToken) {
-      setSessionLikes(new Set());
-      return;
-    }
-    try {
-      const data = await apiGet("/me/session-likes", authToken);
-      const ids = Array.isArray(data) ? data : data?.session_ids || [];
-      setSessionLikes(new Set(ids.map((id) => String(id))));
-    } catch {
-      setSessionLikes(new Set());
-    }
-  };
-  const refreshCardResults = async () => {
-    if (!isAuth || !authToken) {
-      setCardResults([]);
-      return;
-    }
-    try {
-      const data = await apiGet("/me/card-results", authToken);
-      setCardResults(Array.isArray(data) ? data : []);
-    } catch {
-      setCardResults([]);
-    }
-  };
-
-  const refreshChallenge = async () => {
-    if (!isAuth || !authToken) {
-      setActiveChallenge(null);
-      return;
-    }
-    try {
-      const data = await apiGet("/me/challenge", authToken);
-      setActiveChallenge(data?.challenge || null);
-    } catch {
-      setActiveChallenge(null);
-    }
-  };
 
   const refreshGlobalDashboard = async ({ includeNews = true } = {}) => {
     const now = Date.now();
@@ -519,16 +319,6 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [isAuth, mode, range]);
-
-  useEffect(() => {
-    if (showNewsArchive) {
-      updateUrlFilters(null, null, false);
-      return;
-    }
-    const initial = initialFiltersRef.current;
-    const shouldSyncFilters = filtersTouchedRef.current || initial.mode || initial.range;
-    updateUrlFilters(mode, range, shouldSyncFilters);
-  }, [mode, range, showNewsArchive]);
 
   useEffect(() => {
     if (!isAuth) {
@@ -1343,36 +1133,22 @@ export default function App() {
   const daysSinceLast = useMemo(() => (lastSessionDay ? dayjs().diff(lastSessionDay, "day") : null), [lastSessionDay]);
   const lastLabel = lastSessionDay ? capFirst(lastSessionDay.format("dddd DD MMM YYYY")) : "Aucune";
   const lastType = lastSession ? normType(lastSession.type) : null;
+  const canEditSelected = !!selectedUser && (isAdmin || user?.id === selectedUser.id);
 
-  const showToast = (message) => {
-    setToast(message);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(""), 2400);
-  };
-
-  const withBusy = async (fn) => {
-    setIsBusy(true);
-    const start = Date.now();
-    try {
-      return await fn();
-    } finally {
-      const elapsed = Date.now() - start;
-      const minDelay = 500;
-      if (elapsed < minDelay) {
-        await new Promise((resolve) => setTimeout(resolve, minDelay - elapsed));
-      }
-      setIsBusy(false);
-    }
-  };
+  const { showToast, withBusy, guard } = useAppActions({
+    setToast,
+    setIsBusy,
+    toastTimerRef,
+    canEditSelected,
+    checking,
+    isAuth,
+    selectedUser,
+    onRequireAuth: () => setShowEditModal(true),
+    busyMinMs: 500,
+    toastMs: 2400,
+  });
 
   /* ===== CRUD ===== */
-  const guard = (fn) => async (...args) => {
-    if (checking) return;
-    if (!isAuth) { setShowEditModal(true); return; }
-    if (!selectedUser) return;
-    if (!canEditSelected) { showToast("Edition reservee"); return; }
-    return fn(...args);
-  };
 
   const addSession = guard(async (payload) => {
     const basePath = getSessionsBasePath();
@@ -1483,7 +1259,6 @@ export default function App() {
   const hasSessions = shownSessions.length > 0;
   const isGlobalView = !selectedUser;
   const headerTitle = selectedUser ? selectedUser.name : null;
-  const canEditSelected = !!selectedUser && (isAdmin || user?.id === selectedUser.id);
   const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
   const cardsUnlockedCounts = useMemo(() => {
     const counts = { defi: 0, rare: 0, evenement: 0 };
@@ -1538,37 +1313,17 @@ export default function App() {
     };
   }, [selectedUserInfo?.id, isAuth, authToken, user?.id, cardsUnlockedCounts]);
 
-  const updateUrlFilters = (nextMode, nextRange, includeFilters = true) => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (includeFilters) {
-      if (nextMode) params.set("mode", nextMode);
-      else params.delete("mode");
-      if (nextRange) params.set("range", nextRange);
-      else params.delete("range");
-    } else {
-      params.delete("mode");
-      params.delete("range");
-    }
-    if (userCardOpen) params.set("card", "open");
-    else params.delete("card");
-    const search = params.toString();
-    const path = window.location.pathname || "/";
-    window.history.replaceState({}, "", search ? `${path}?${search}` : path);
-  };
-
-  const handleRangeChange = (nextRange) => {
-    rangeTouchedRef.current = true;
-    filtersTouchedRef.current = true;
-    setRange(nextRange);
-    updateUrlFilters(mode, nextRange, !showNewsArchive);
-  };
-
-  const handleModeChange = (nextMode) => {
-    filtersTouchedRef.current = true;
-    setMode(nextMode);
-    updateUrlFilters(nextMode, range, !showNewsArchive);
-  };
+  const { handleRangeChange, handleModeChange } = useAppFilters({
+    mode,
+    range,
+    showNewsArchive,
+    userCardOpen,
+    setMode,
+    setRange,
+    initialFiltersRef,
+    rangeTouchedRef,
+    filtersTouchedRef,
+  });
 
   const handleSelectUser = (u) => {
     setSelectedUser(u);
@@ -1620,264 +1375,19 @@ export default function App() {
     }
   };
 
-  const getMainScrollTop = () => {
-    if (mainRef.current) return mainRef.current.scrollTop || 0;
-    const scrollingEl = document.scrollingElement || document.documentElement;
-    return scrollingEl ? scrollingEl.scrollTop || 0 : 0;
-  };
-
-  const startPullRefresh = (clientY) => {
-    if (!pullToRefreshEnabled) return false;
-    if (!isGlobalView || showCardsPage || showNewsArchive) return false;
-    if (dashboardRefreshingRef.current) return false;
-    if (getMainScrollTop() > 0) return false;
-    if (clientY > 80) return false;
-    if (typeof window !== "undefined" && window.__DEBUG_PULL) {
-      console.log("[pull] start", {
-        clientY,
-        mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
-        docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
-      });
-    }
-    pullRefreshRef.current.active = true;
-    pullRefreshRef.current.startY = clientY;
-    pullRefreshRef.current.lastY = clientY;
-    setPullActive(true);
-    setPullDistance(0);
-    return true;
-  };
-
-  const updatePullRefresh = (clientY) => {
-    if (!pullRefreshRef.current.active) return;
-    pullRefreshRef.current.lastY = clientY;
-    const dy = Math.max(0, clientY - pullRefreshRef.current.startY);
-    const eased = Math.min(120, dy);
-    setPullDistance(eased);
-    if (typeof window !== "undefined" && window.__DEBUG_PULL) {
-      console.log("[pull] move", {
-        clientY,
-        dy,
-        mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
-        docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
-      });
-    }
-  };
-
-  const endPullRefresh = () => {
-    if (!pullRefreshRef.current.active) return;
-    const dy = pullRefreshRef.current.lastY - pullRefreshRef.current.startY;
-    pullRefreshRef.current.active = false;
-    pullRefreshRef.current.mouse = false;
-    setPullActive(false);
-    setPullDistance(0);
-    if (typeof window !== "undefined" && window.__DEBUG_PULL) {
-      console.log("[pull] end", {
-        dy,
-        mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
-        docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
-      });
-    }
-    if (dy > 60) {
-      refreshGlobalDashboard({ includeNews: false });
-    }
-  };
-
-  const onTouchStart = (e) => {
-    const touch = e.touches?.[0];
-    if (!touch) return;
-    if (startPullRefresh(touch.clientY)) return;
-    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
-    swipeRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      lastX: touch.clientX,
-      lastY: touch.clientY,
-      t: Date.now(),
-      moved: false,
-    };
-  };
-
-  const onTouchMove = (e) => {
-    const touch = e.touches?.[0];
-    if (!touch) return;
-    if (pullRefreshRef.current.active) {
-      updatePullRefresh(touch.clientY);
-      return;
-    }
-    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
-    const dx = touch.clientX - swipeRef.current.x;
-    const dy = touch.clientY - swipeRef.current.y;
-    swipeRef.current.lastX = touch.clientX;
-    swipeRef.current.lastY = touch.clientY;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-      swipeRef.current.moved = true;
-    }
-  };
-
-  const onTouchEnd = () => {
-    if (pullRefreshRef.current.active) {
-      endPullRefresh();
-      return;
-    }
-    if (!showCardsPage && !selectedUser && !showNewsArchive) return;
-    const { x, y, lastX, lastY, t, moved } = swipeRef.current || {};
-    if (!moved) return;
-    const dt = Date.now() - (t || 0);
-    if (!dt || dt > 700) return;
-    const dx = (lastX || 0) - (x || 0);
-    const dy = (lastY || 0) - (y || 0);
-    if (dx > 70 && Math.abs(dy) < 50) {
-      handleBack();
-    }
-  };
-
-  const onMouseDown = (e) => {
-    if (e.button !== 0) return;
-    if (startPullRefresh(e.clientY)) {
-      pullRefreshRef.current.mouse = true;
-    }
-  };
-
-  const onMouseMove = (e) => {
-    if (!pullRefreshRef.current.active || !pullRefreshRef.current.mouse) return;
-    updatePullRefresh(e.clientY);
-  };
-
-  const onMouseUp = () => {
-    if (!pullRefreshRef.current.active || !pullRefreshRef.current.mouse) return;
-    endPullRefresh();
-  };
-
-  const onMouseLeave = () => {
-    if (!pullRefreshRef.current.active || !pullRefreshRef.current.mouse) return;
-    endPullRefresh();
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const handleTouchStart = (e) => onTouchStart(e);
-    const handleTouchMove = (e) => onTouchMove(e);
-    const handleTouchEnd = () => onTouchEnd();
-    const handleTouchCancel = () => onTouchEnd();
-    const handleTouchStartDebug = (e) => {
-      if (typeof window !== "undefined" && window.__DEBUG_PULL) {
-        const touch = e.touches?.[0];
-        console.log("[pull] touchstart", {
-          clientY: touch?.clientY ?? null,
-          mainScrollTop: mainRef.current ? mainRef.current.scrollTop : null,
-          docScrollTop: (document.scrollingElement || document.documentElement)?.scrollTop ?? null,
-        });
-      }
-    };
-    const handleMouseDown = (e) => {
-      onMouseDown(e);
-    };
-    const handleMouseMove = (e) => onMouseMove(e);
-    const handleMouseUp = () => {
-      onMouseUp();
-    };
-    const handleScroll = () => {
-      if (getMainScrollTop() > 0) lastNonZeroScrollTsRef.current = Date.now();
-    };
-    const handleWheel = (e) => {
-      if (!pullToRefreshEnabled) return;
-      if (!isGlobalView || showCardsPage || showNewsArchive) return;
-      if (dashboardRefreshingRef.current) return;
-      if (getMainScrollTop() > 0) return;
-      if (Date.now() - lastNonZeroScrollTsRef.current < 250) return;
-      const delta = e.deltaY || 0;
-      if (Math.abs(delta) < 10) return;
-      if (delta < 0) {
-        const nowTs = Date.now();
-        const idleGap = nowTs - (wheelPullRef.current.lastTs || 0);
-        if (!wheelPullRef.current.startTs || idleGap > 260) {
-          wheelPullRef.current.startTs = nowTs;
-          if (wheelTriggerTimerRef.current) clearTimeout(wheelTriggerTimerRef.current);
-          wheelTriggerTimerRef.current = setTimeout(() => {
-            if (!isGlobalView || showCardsPage || showNewsArchive) return;
-            if (dashboardRefreshingRef.current) return;
-            if (getMainScrollTop() > 0) return;
-            const lastGap = Date.now() - (wheelPullRef.current.lastTs || 0);
-            if (lastGap > 220) return;
-            if (wheelPullRef.current.accum >= 60) {
-              wheelPullRef.current.accum = 0;
-              wheelPullRef.current.startTs = 0;
-              setPullActive(false);
-              setPullDistance(0);
-              refreshGlobalDashboard({ includeNews: false });
-            }
-          }, 800);
-        }
-        wheelPullRef.current.lastTs = nowTs;
-        wheelPullRef.current.accum += Math.abs(delta);
-      } else if (wheelPullRef.current.accum > 0) {
-        wheelPullRef.current.accum = Math.max(0, wheelPullRef.current.accum - delta * 0.15);
-      } else {
-        return;
-      }
-      const eased = Math.min(60, wheelPullRef.current.accum);
-      if (wheelPullRef.current.accum >= 60) {
-        setPullActive(true);
-        setPullDistance(eased);
-      }
-      if (wheelResetTimerRef.current) clearTimeout(wheelResetTimerRef.current);
-      wheelResetTimerRef.current = setTimeout(() => {
-        wheelPullRef.current.accum = 0;
-        wheelPullRef.current.startTs = 0;
-        if (wheelTriggerTimerRef.current) {
-          clearTimeout(wheelTriggerTimerRef.current);
-          wheelTriggerTimerRef.current = null;
-        }
-        setPullActive(false);
-        setPullDistance(0);
-      }, 1100);
-      if (wheelPullRef.current.accum > 60) {
-        const nowTs = Date.now();
-        const duration = nowTs - (wheelPullRef.current.startTs || 0);
-        if (duration < 800) return;
-        if (nowTs - (wheelPullRef.current.lastTs || 0) > 220) return;
-        wheelPullRef.current.accum = 0;
-        wheelPullRef.current.startTs = 0;
-        if (wheelTriggerTimerRef.current) {
-          clearTimeout(wheelTriggerTimerRef.current);
-          wheelTriggerTimerRef.current = null;
-        }
-        setPullActive(false);
-        setPullDistance(0);
-        refreshGlobalDashboard({ includeNews: false });
-      }
-    };
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchstart", handleTouchStartDebug, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
-    window.addEventListener("touchend", handleTouchEnd);
-    window.addEventListener("touchcancel", handleTouchCancel);
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("wheel", handleWheel, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchstart", handleTouchStartDebug);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchcancel", handleTouchCancel);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("wheel", handleWheel);
-      if (wheelResetTimerRef.current) {
-        clearTimeout(wheelResetTimerRef.current);
-        wheelResetTimerRef.current = null;
-      }
-      if (wheelTriggerTimerRef.current) {
-        clearTimeout(wheelTriggerTimerRef.current);
-        wheelTriggerTimerRef.current = null;
-      }
-    };
-  }, [isGlobalView, showCardsPage, showNewsArchive, dashboardRefreshing]);
+  useAppGestures({
+    enabled: pullToRefreshEnabled,
+    isGlobalView,
+    showCardsPage,
+    selectedUser,
+    showNewsArchive,
+    mainRef,
+    dashboardRefreshingRef,
+    refreshGlobalDashboard,
+    setPullActive,
+    setPullDistance,
+    handleBack,
+  });
 
   if (loadingPhase !== "done" || FORCE_LOADING) {
     return <LoadingScreen loadingPhase={loadingPhase} forceLoading={FORCE_LOADING} />;
