@@ -4,7 +4,7 @@ export function LoadingScreen({ loadingPhase, forceLoading }) {
   const isFading = loadingPhase === "fading" && !forceLoading;
   return (
     <div
-      className={`min-h-screen min-h-full bg-gradient-to-b from-slate-100 via-slate-50 to-slate-50 dark:from-[#0b1020] dark:via-[#0a1028] dark:to-[#0b1228] flex items-center justify-center ${
+      className={`min-h-screen h-full bg-gradient-to-b from-slate-100 via-slate-50 to-slate-50 dark:from-[#0b1020] dark:via-[#0a1028] dark:to-[#0b1228] flex items-center justify-center ${
         isFading ? "animate-[fade-out_0.5s_ease-in-out_forwards]" : ""
       }`}
     >
