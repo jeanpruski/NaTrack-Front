@@ -588,8 +588,11 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const setAppHeight = () => {
+      const isStandalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
       const vv = window.visualViewport;
-      const height = vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight;
+      const height = isStandalone
+        ? window.innerHeight
+        : (vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight);
       document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
     };
     setAppHeight();
@@ -2305,7 +2308,6 @@ export default function App() {
         </main>
       </div>
 
-      <div className="app-safe-spacer" aria-hidden="true" />
       <div
         className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 h-[6px] bg-gradient-to-r from-sky-400 via-lime-300 to-emerald-300"
         aria-hidden="true"
