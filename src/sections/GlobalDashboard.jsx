@@ -258,9 +258,22 @@ export function GlobalDashboard({
     return () => { alive = false; };
   }, [newsItems]);
 
-  const realUnreadNotifications = (notifications || []).filter(
-    (n) => !n.read_at && (n.type === "challenge_start" || n.type === "event_start")
-  );
+  const isFreshNotification = (n) => {
+    const created = dayjs(n?.created_at);
+    if (!created.isValid()) return true;
+    const todayStart = dayjs().startOf("day");
+    if (n.type === "event_start") {
+      return created.startOf("day").valueOf() === todayStart.valueOf();
+    }
+    if (n.type === "challenge_start") {
+      const threshold = todayStart.subtract(2, "day").valueOf();
+      return created.startOf("day").valueOf() >= threshold;
+    }
+    return true;
+  };
+  const realUnreadNotifications = (notifications || [])
+    .filter((n) => !n.read_at && (n.type === "challenge_start" || n.type === "event_start"))
+    .filter(isFreshNotification);
   const unreadNotifications = adminNotifOverride || realUnreadNotifications;
   const latestUnreadNotification = useMemo(() => {
     if (!unreadNotifications.length) return null;

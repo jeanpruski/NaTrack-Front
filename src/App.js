@@ -86,6 +86,7 @@ export default function App() {
     setActiveChallenge,
   } = useAppData({ authToken, isAuth, setError });
   const [showEditModal, setShowEditModal] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [showCardsPage, setShowCardsPage] = useState(false);
   const [cardsFilter, setCardsFilter] = useState("mixte");
   const [showAllCardsFront, setShowAllCardsFront] = useState(false);
@@ -351,7 +352,7 @@ export default function App() {
     if (!startNotif?.created_at) return null;
     const start = dayjs(startNotif.created_at);
     if (!start.isValid()) return null;
-    const due = activeChallenge.type === "evenement" ? start.endOf("day") : start.add(3, "day");
+    const due = activeChallenge.type === "evenement" ? start.endOf("day") : start.add(2, "day");
     return due.toDate();
   }, [activeChallenge, notifications]);
 
@@ -1260,6 +1261,12 @@ export default function App() {
   const isGlobalView = !selectedUser;
   const headerTitle = selectedUser ? selectedUser.name : null;
   const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
+
+  useEffect(() => {
+    if (isGlobalView || showCardsPage || showNewsArchive) {
+      setAdminPanelOpen(false);
+    }
+  }, [isGlobalView, showCardsPage, showNewsArchive]);
   const cardsUnlockedCounts = useMemo(() => {
     const counts = { defi: 0, rare: 0, evenement: 0 };
     const totals = { defi: 0, rare: 0, evenement: 0 };
@@ -1428,9 +1435,14 @@ export default function App() {
           isAuth={isAuth}
           showEditor={!showCardsPage && !showNewsArchive && showEditorButton}
           showFilters={!showCardsPage && !showNewsArchive}
+          filtersHidden={adminPanelOpen}
+          onRefresh={
+            isGlobalView && !showCardsPage && !showNewsArchive ? () => refreshGlobalDashboard() : null
+          }
+          isRefreshing={dashboardRefreshing}
           newsFilter={showNewsArchive ? newsFilter : null}
           onNewsFilterChange={setNewsFilter}
-          editorIcon={isGlobalView ? "user" : "pencil"}
+          editorVariant={isGlobalView && isAuth ? "user" : "logout"}
           rangeOptions={rangeOptions}
           cardsFilter={
             showCardsPage
@@ -1464,6 +1476,11 @@ export default function App() {
           onOpenEditor={() => {
             if (isGlobalView && isAuth && user) {
               setSelectedUser(user);
+              return;
+            }
+            if (isAuth) {
+              if (!window.confirm("Se déconnecter ?")) return;
+              editLogout();
               return;
             }
             setEditModalInitialTab("options");
@@ -1725,6 +1742,17 @@ export default function App() {
                   userCardOpen={userCardOpen}
                   onUserCardOpenChange={setUserCardOpen}
                   currentUserId={user?.id || null}
+                  isAdmin={isAdmin}
+                  isBusy={isBusy}
+                  canEditSelected={canEditSelected}
+                  adminSessions={canEditSelected ? userSessions : sessions.filter((s) => s.user_id === user?.id)}
+                  onAddSession={addSession}
+                  onEditSession={editSession}
+                  onDeleteSession={deleteSession}
+                  onExportSessions={exportCSV}
+                  onImportSessions={importCSV}
+                  adminPanelOpen={adminPanelOpen}
+                  onAdminPanelOpenChange={setAdminPanelOpen}
                   cardsUnlockedCounts={selectedUserCardCounts}
                   activeChallenge={activeChallenge}
                   activeChallengeDueAt={activeChallengeDueAt}

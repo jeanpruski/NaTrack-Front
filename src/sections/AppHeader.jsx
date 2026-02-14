@@ -9,7 +9,7 @@ import {
   Lock,
   LockOpen,
   Newspaper,
-  Pencil,
+  RefreshCw,
   Sparkles,
   Swords,
   User,
@@ -147,12 +147,15 @@ export function AppHeader({
   isAuth,
   showEditor = true,
   showFilters = true,
+  filtersHidden = false,
   newsFilter = null,
   title,
   editorTargetName,
   loggedUserName,
-  editorIcon = "pencil",
+  editorVariant = "logout", // "logout" | "user"
   onOpenEditor,
+  onRefresh,
+  isRefreshing = false,
   onModeChange,
   onRangeChange,
   onBack,
@@ -287,38 +290,66 @@ export function AppHeader({
             )}
           </div>
 
-          {showEditor && (
-            <button
-              onClick={onOpenEditor}
-              className={`ml-auto xl:ml-2 rounded-xl px-3 py-2 text-sm transition relative overflow-hidden ${
-                isAuth
-                  ? "bg-emerald-300/60 text-slate-900 dark:text-white hover:bg-emerald-300/80"
-                  : "bg-amber-500/70 text-white hover:bg-amber-500/90"
-              }`}
-              title={isAuth ? "Ouvrir l’éditeur" : "Déverrouiller l’édition"}
-            >
-              <span
-                className={`pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 hover:opacity-100 ${
-                  isAuth ? "bg-emerald-300/45" : "bg-amber-400/40"
-                }`}
-              />
-              <span className="inline-flex items-center gap-1.5 relative z-10">
-                {!isAuth ? (
-                  <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
-                    <LockOpen size={16} aria-hidden="true" />
+          {(onRefresh || showEditor) && (
+            <div className="ml-auto xl:ml-2 flex items-center gap-2">
+              {showEditor && (
+                <button
+                  onClick={onOpenEditor}
+                  className={`rounded-xl px-3 py-2 text-sm transition relative overflow-hidden ${
+                    isAuth
+                      ? editorVariant === "user"
+                        ? "bg-emerald-300/60 text-slate-900 dark:text-white hover:bg-emerald-300/80"
+                        : "bg-orange-400/70 text-white hover:bg-orange-400/90 dark:bg-orange-400/70 dark:text-white dark:hover:bg-orange-400/90"
+                      : "bg-amber-500/70 text-white hover:bg-amber-500/90"
+                  }`}
+                  title={
+                    isAuth
+                      ? editorVariant === "user"
+                        ? "Voir mon dashboard"
+                        : "Déconnexion"
+                      : "Déverrouiller l’édition"
+                  }
+                >
+                  <span
+                    className={`pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 hover:opacity-100 ${
+                      isAuth
+                        ? editorVariant === "user"
+                          ? "bg-emerald-300/45"
+                          : "bg-orange-300/50"
+                        : "bg-amber-400/40"
+                    }`}
+                  />
+                  <span className="inline-flex items-center gap-1.5 relative z-10">
+                    {!isAuth ? (
+                      <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
+                        <LockOpen size={16} aria-hidden="true" />
+                      </span>
+                    ) : editorVariant === "user" ? (
+                      <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
+                        <User size={16} aria-hidden="true" />
+                      </span>
+                    ) : (
+                      <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
+                        <Lock size={16} aria-hidden="true" />
+                      </span>
+                    )}
+                    {isAuth && loggedUserName && <span className="sm:inline">{` ${loggedUserName}`}</span>}
                   </span>
-                ) : editorIcon === "user" ? (
-                  <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
-                    <User size={16} aria-hidden="true" />
-                  </span>
-                ) : (
-                  <span className="relative top-[1px] inline-flex h-4 w-4 items-center justify-center">
-                    <Pencil size={16} aria-hidden="true" />
-                  </span>
-                )}
-                {isAuth && loggedUserName && <span className="sm:inline">{` ${loggedUserName}`}</span>}
-              </span>
-            </button>
+                </button>
+              )}
+
+              {onRefresh && (
+                <button
+                  type="button"
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  aria-label="Rafraîchir"
+                  className="inline-flex items-center justify-center rounded-xl bg-sky-500/80 px-3 py-2 text-sm text-white shadow-sm transition hover:bg-sky-500/90 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-sky-500/70 dark:hover:bg-sky-500/80"
+                >
+                  <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+                </button>
+              )}
+            </div>
           )}
 
         </div>
@@ -355,14 +386,22 @@ export function AppHeader({
       )}
 
       {showFilters && (
-        <div className="flex items-center justify-between gap-2 xl:hidden">
+        <div
+          className={`flex items-center justify-between gap-2 xl:hidden transition-opacity ${
+            filtersHidden ? "opacity-0 invisible pointer-events-none" : "opacity-100"
+          }`}
+        >
           <RangeSelect value={range} onChange={onRangeChange} options={rangeOptions} />
           <TypeSwitch value={mode} onChange={onModeChange} />
         </div>
       )}
 
       {showFilters && (
-        <div className="hidden xl:flex items-center justify-end gap-3">
+        <div
+          className={`hidden xl:flex items-center justify-end gap-3 transition-opacity ${
+            filtersHidden ? "opacity-0 invisible pointer-events-none" : "opacity-100"
+          }`}
+        >
           <RangeSelect value={range} onChange={onRangeChange} options={rangeOptions} />
           <TypeSwitch value={mode} onChange={onModeChange} />
         </div>

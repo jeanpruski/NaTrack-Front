@@ -47,51 +47,51 @@ export function AddSessionForm({ onAdd, onExport, onImport, readOnly, isAdmin })
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {/* ✅ Switch type */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-inner dark:border-slate-700 dark:bg-slate-800/80">
-        <div className="flex flex-col">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-300">
-            Type de séance
-          </span>
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            Natation ou running
-          </span>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* ✅ Switch type */}
+        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-inner dark:border-slate-700 dark:bg-slate-800/80">
+          <div className="flex flex-col">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              Type de séance
+            </span>
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              Natation ou running
+            </span>
+          </div>
+
+          <div className={`inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900/40 ${readOnly ? disabledCls : ""}`}>
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => setType("swim")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition
+                ${type === "swim"
+                  ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+                }`}
+              title="Natation"
+            >
+              <Waves size={14} className="text-inherit" />
+              Natation
+            </button>
+
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => setType("run")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition
+                ${type === "run"
+                  ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
+                }`}
+              title="Running"
+            >
+              <PersonStanding size={14} className="text-inherit" />
+              Running
+            </button>
+          </div>
         </div>
 
-        <div className={`inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900/40 ${readOnly ? disabledCls : ""}`}>
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => setType("swim")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition
-              ${type === "swim"
-                ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-slate-100"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
-              }`}
-            title="Natation"
-          >
-            <Waves size={14} className="text-inherit" />
-            Natation
-          </button>
-
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => setType("run")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition
-              ${type === "run"
-                ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-slate-100"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
-              }`}
-            title="Running"
-          >
-            <PersonStanding size={14} className="text-inherit" />
-            Running
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <label className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-inner dark:border-slate-700 dark:bg-slate-800/80">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-600 group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-slate-100">
             Distance (m)

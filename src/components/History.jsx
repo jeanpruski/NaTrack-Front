@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { Waves, PersonStanding } from "lucide-react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
+import { capFirst } from "../utils/strings";
 
 function normType(t) {
   return (t || "swim").toLowerCase() === "run" ? "run" : "swim";
@@ -20,7 +21,7 @@ function TypeBadge({ type }) {
       title={isRun ? "Running" : "Natation"}
     >
       {isRun ? <PersonStanding size={14} /> : <Waves size={14} />}
-      <span className="hidden sm:inline">{isRun ? "Running" : "Natation"}</span>
+      <span>{isRun ? "Running" : "Natation"}</span>
     </span>
   );
 }
@@ -31,7 +32,7 @@ function TypeSelect({ value, onChange }) {
     <select
       value={v}
       onChange={(e) => onChange(e.target.value)}
-      className="appearance-none w-[4.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1 text-[16px] sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+      className="appearance-none w-[7.5rem] sm:w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1 text-[16px] sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
     >
       <option value="swim">Natation</option>
       <option value="run">Running</option>
@@ -46,7 +47,15 @@ export function History({ sessions, onDelete, onEdit, readOnly }) {
   const [editDistance, setEditDistance] = useState("");
   const [editType, setEditType] = useState("swim");
 
-  const perPage = 12;
+  const perPage = 10;
+  const formatDesktopDate = (value) => {
+    const formatted = dayjs(value).locale("fr").format("D MMMM YYYY");
+    const parts = formatted.split(" ");
+    if (parts.length < 3) return formatted;
+    const [day, month, year] = parts;
+    return `${day} ${capFirst(month)} ${year}`;
+  };
+  const formatMobileDate = (value) => formatDesktopDate(value);
 
   useEffect(() => {
     setPage(1);
@@ -98,8 +107,105 @@ export function History({ sessions, onDelete, onEdit, readOnly }) {
   return (
     <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 backdrop-blur dark:ring-slate-700 dark:bg-slate-900/60">
       <div className="p-0 sm:p-4">
-        {/* ✅ minimal: table-fixed + paddings mobile réduits */}
-        <table className="w-full table-fixed text-left text-slate-900 dark:text-slate-100">
+        {/* Mobile cards */}
+        <div className="sm:hidden divide-y divide-slate-200 dark:divide-slate-700">
+          {currentData.map((s) => {
+            const isEditing = editId === s.id;
+            return (
+              <div key={s.id} className="px-3 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="w-[9.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1 text-[16px] text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                    ) : (
+                      formatMobileDate(s.date)
+                    )}
+                  </div>
+                  <div>
+                    {isEditing ? (
+                      <TypeSelect value={editType} onChange={setEditType} />
+                    ) : (
+                      <TypeBadge type={s.type} />
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Distance</div>
+                  <div className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editDistance}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || /^\d+$/.test(value)) {
+                            setEditDistance(value);
+                          }
+                        }}
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[16px] text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                    ) : (
+                      `${s.distance} m`
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={saveEdit}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-2 py-1.5 text-white hover:bg-emerald-500"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-500 px-2 py-1.5 text-white hover:bg-slate-400"
+                      >
+                        <X size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startEdit(s)}
+                        disabled={readOnly}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-white ${
+                          readOnly ? "bg-slate-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-500"
+                        }`}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => !readOnly && onDelete(s.id)}
+                        disabled={readOnly}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-white ${
+                          readOnly ? "bg-slate-400 cursor-not-allowed" : "bg-rose-600 hover:bg-rose-500"
+                        }`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <table className="hidden sm:table w-full table-fixed text-left text-slate-900 dark:text-slate-100">
           <thead className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
             <tr>
               <th className="px-2 sm:px-4 py-3 w-[7rem]">Date</th>
@@ -128,7 +234,14 @@ export function History({ sessions, onDelete, onEdit, readOnly }) {
                         className="w-[6rem] sm:w-auto rounded-lg border border-slate-300 bg-white px-2 py-1 text-[16px] sm:text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                       />
                     ) : (
-                      dayjs(s.date).format("DD-MM-YYYY")
+                      <>
+                        <span className="hidden sm:inline">
+                          {formatDesktopDate(s.date)}
+                        </span>
+                        <span className="sm:hidden">
+                          {formatMobileDate(s.date)}
+                        </span>
+                      </>
                     )}
                   </td>
 
