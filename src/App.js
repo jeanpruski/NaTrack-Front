@@ -258,15 +258,6 @@ export default function App() {
     }
   };
 
-  const markNotificationsRead = async (ids) => {
-    if (!isAuth || !authToken) return;
-    try {
-      await apiJson("POST", "/me/notifications/read", { ids }, authToken);
-      refreshNotifications();
-    } catch {
-      // ignore
-    }
-  };
 
   const toggleSessionLike = async (sessionId) => {
     if (!isAuth || !authToken || !sessionId) return;
@@ -583,6 +574,15 @@ export default function App() {
     if (authTransitionTimerRef.current) clearTimeout(authTransitionTimerRef.current);
     try {
       await login(payload);
+      setShowEditModal(false);
+      setShowCardsPage(false);
+      setShowNewsArchive(false);
+      setUserCardOpen(false);
+      setSelectedUser(null);
+      if ((window.location.pathname || "/") !== "/") {
+        window.history.replaceState({}, "", "/");
+        setRouteState({ type: "root", slug: null });
+      }
     } catch (e) {
       const elapsed = Date.now() - startedAt;
       const minMs = 400;
@@ -1350,13 +1350,8 @@ export default function App() {
     if (!latest?.id) return;
 
     const storageKey = "natrack:lastVictoryCardResultId";
-    const lastSeen = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
-    if (victoryInfo) {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(storageKey, String(latest.id));
-      }
-      return;
-    }
+    const lastSeen = user?.last_victory_seen_id || (typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null);
+    if (victoryInfo) return;
     if (lastSeen && String(lastSeen) === String(latest.id)) return;
 
     const botName = latest.bot_name || "un bot";
@@ -1368,10 +1363,7 @@ export default function App() {
       distanceKm: Number.isFinite(distanceKm) ? distanceKm : null,
       actualKm: Number.isFinite(actualKm) ? actualKm : null,
     });
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(storageKey, String(latest.id));
-    }
-  }, [cardResults, isAuth, victoryInfo]);
+  }, [cardResults, isAuth, victoryInfo, user?.last_victory_seen_id]);
 
   useEffect(() => {
     if (!selectedUserInfo?.id || !isAuth || !authToken) {
@@ -1574,7 +1566,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.11{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.12{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
@@ -1595,6 +1587,22 @@ export default function App() {
             <InfoPopover
               open={!!victoryInfo}
               onClose={() => {
+                if (victoryInfo?.botId) {
+                  try {
+                    const latestResult = (cardResults || [])
+                      .filter((r) => ["defi", "rare", "evenement"].includes(String(r?.type || "").toLowerCase()))
+                      .sort((a, b) => {
+                        const aTs = dayjs(a?.achieved_at_time || a?.achieved_at || 0).valueOf();
+                        const bTs = dayjs(b?.achieved_at_time || b?.achieved_at || 0).valueOf();
+                        if (aTs !== bTs) return bTs - aTs;
+                        return String(b?.id || "").localeCompare(String(a?.id || ""));
+                      })[0];
+                    if (latestResult?.id) {
+                      apiJson("POST", "/me/victory/seen", { victory_id: latestResult.id }, authToken).catch(() => {});
+                      localStorage.setItem("natrack:lastVictoryCardResultId", String(latestResult.id));
+                    }
+                  } catch {}
+                }
                 setVictoryInfo(null);
                 setShowVictoryCardPreview(false);
               }}
@@ -1688,6 +1696,22 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => {
+                                if (victoryInfo?.botId) {
+                                  try {
+                                    const latestResult = (cardResults || [])
+                                      .filter((r) => ["defi", "rare", "evenement"].includes(String(r?.type || "").toLowerCase()))
+                                      .sort((a, b) => {
+                                        const aTs = dayjs(a?.achieved_at_time || a?.achieved_at || 0).valueOf();
+                                        const bTs = dayjs(b?.achieved_at_time || b?.achieved_at || 0).valueOf();
+                                        if (aTs !== bTs) return bTs - aTs;
+                                        return String(b?.id || "").localeCompare(String(a?.id || ""));
+                                      })[0];
+                                    if (latestResult?.id) {
+                                      apiJson("POST", "/me/victory/seen", { victory_id: latestResult.id }, authToken).catch(() => {});
+                                      localStorage.setItem("natrack:lastVictoryCardResultId", String(latestResult.id));
+                                    }
+                                  } catch {}
+                                }
                                 setVictoryInfo(null);
                                 setSelectedUser(null);
                                 setUserCardOpen(false);
@@ -1799,7 +1823,6 @@ export default function App() {
                   notificationsLoading={notificationsLoading}
                   notificationsError={notificationsError}
                   onRefreshNotifications={refreshNotifications}
-                  onMarkNotificationRead={markNotificationsRead}
                   activeChallenge={activeChallenge}
                   newsItems={newsItems}
                   newsLoading={newsLoading}
