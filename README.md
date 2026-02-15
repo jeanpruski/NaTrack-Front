@@ -1,95 +1,157 @@
 # NaTrack — Suivi Natation & Running
-**Version : Alpha 0.0.12**
+**Version : Alpha 0.0.13**
 
-Application web responsive pour suivre ses séances de natation et de running, visualiser l’évolution des distances parcourues, et débloquer des cartes (défis, rares, événements).  
-Version multi‑utilisateurs avec dashboard global public, dashboards individuels, mode édition sécurisé et cartes bots.
+NaTrack est une application web de suivi sportif (natation + running) avec dashboards, historiques, cartes bots (défi/rare/événement), et intégration Strava (import automatique du dernier run).
+
+Objectif : permettre à une team de suivre les distances, comparer les performances, et débloquer des cartes en réalisant des défis.
 
 ---
 
-## 🌟 En bref
+## 🌟 Ce que permet l’app
 
-- Dashboard global public + dashboards individuels
-- Cartes bots (défi, rare, événement) + notifications
-- KPIs, graphiques, heatmap et comparatifs
-- Import/Export CSV
+- Dashboard global public (classement, KPIs, graphes)
+- Dashboards individuels (stats détaillées par user)
+- Historique des séances, import/export CSV
+- Cartes bots (défi, rare, événement) avec victoire
+- Notifications et popup de victoire (one‑shot)
 - Mode clair/sombre persistant
-- Page **Événements spéciaux** / **/events** (news DB)
-- Pages & filtres pilotables par **query params**
+- Page **Événements spéciaux**
+- Intégration Strava (import auto du dernier run)
 
 ---
 
 ## 🧭 Pages & navigation
 
-### Routes (front)
-- `/`  
+### Routes principales (front)
+
+- `/`
   Dashboard global public.
-- `/user/:slug`  
+- `/user/:slug`
   Dashboard individuel (ex: `/user/jean`).
-- `/cards`  
+- `/cards`
   Galerie de cartes (bots / users).
-- `/events`  
+- `/events`
   Listing **Toutes les news** (passées & futures).
 
-> Note: `/events` remplace l’ancien `/news` (qui peut être bloqué chez certains hébergeurs).
+> Note : `/events` remplace l’ancien `/news` (peut être bloqué chez certains hébergeurs).
 
-### Query params
+### Query params utiles
+
 Ces params s’appliquent aux dashboards (global + user) :
 
 - `mode=all|run|swim`
 - `range=all|month|3m|6m|2026|2025|season:X`
 - `card=open` (ouvre la carte dans `/user/:slug`)
 
-Exemples:
+Exemples :
 ```
 /user/jean?mode=swim&range=3m
 /user/jean?mode=all&range=season:2
 /user/jean?card=open
 ```
 
-Sur `/events`, **pas de `mode` / `range`** dans l’URL.
+---
+
+## 🔐 Connexion & édition
+
+- Le site est public en lecture.
+- Pour éditer des séances, il faut se connecter.
+- Une fois connecté, on peut modifier ses propres données.
+- Les admins peuvent modifier les données de tous les utilisateurs.
+
+**Connexion (version alpha)**
+- Si un utilisateur n’a pas de compte, il faut contacter l’équipe.
 
 ---
 
-## ✨ Fonctionnalités
+## 🧩 Fonctionnalités principales
 
 ### Dashboard global (public)
+
 - Classement des utilisateurs
-- Comparatif global et podium (bots inclus/masqués)
-- Section **Événements spéciaux** (2 news à venir les plus proches)
-- Accès rapide aux cartes
+- Podium et comparatifs
+- KPIs globaux (distance, séances, etc.)
+- Section événements à venir (2 plus proches)
+- Accès aux cartes
 
 ### Dashboard individuel
+
 - KPIs par période
-- Graphiques (courbes, heatmap, comparatifs, etc.)
+- Graphiques (courbes, heatmap, comparatifs)
 - Historique des séances
-- Mode édition sécurisé
 - Cartes débloquées (défi, rare, événement)
+- Mode édition sécurisé
 
-### Cartes & défis
-- Bots: 3 types de cartes
-  - **Défi**
-  - **Rare** (même mécanique que défi, mais drop plus faible)
-  - **Événement** (journalier)
-- Notifications “défi / événement”
-- Popups (notification, victoire, tutoriel)
+### Historique des séances
 
-### Page Événements spéciaux `/events`
-Listing de **toutes les news** (passées + futures), triable:
-- **Tous**
-- **Futurs**
-- **Passés**
-
-Ordre:
-- Tous / Futurs → **du plus proche au plus lointain**
-- Passés → **du plus récent au plus ancien**
+- Ajout, édition, suppression
+- Import/export CSV
+- Filtre par type (run / swim)
+- Affichage adaptatif mobile
 
 ---
 
-## 📰 News (Événements spéciaux)
+## 🧠 Cartes, défis et événements
 
-Les news sont stockées en base (backend) et chargées via API.
+### Types de cartes
 
-### Champs DB
+- **Défi** : objectif distance à réaliser sur une durée limitée
+- **Rare** : même mécanique, drop plus faible
+- **Événement** : carte journalière (ex: “1000m aujourd’hui”)
+
+### Règles de durée (actuelles)
+
+- Quand un défi / rare démarre un jour J, il est réalisable **jusqu’à J + 2 jours inclus**.
+- Exemple : départ mercredi 11 (matin) → valable mercredi 11, jeudi 12, vendredi 13. Fin **vendredi 13 inclus**.
+
+### Victoire
+
+- Quand un objectif est atteint, une carte “victoire” est créée.
+- Une **popup de victoire** s’affiche **une seule fois** pour la dernière victoire non vue.
+- Une fois fermée, elle ne réapparaît plus.
+
+---
+
+## 🔔 Notifications
+
+- Notifications pour les nouveaux défis et événements.
+- La popup de victoire est indépendante des notifications.
+
+---
+
+## 🔌 Intégration Strava
+
+### Objectif
+
+- Importer automatiquement le **dernier run** Strava.
+- Convertir distance en mètres (format NaTrack).
+- Déclencher les règles de défis / cartes à l’import.
+
+### Principe
+
+- Connexion OAuth Strava par utilisateur.
+- Webhook Strava pour détecter les activités.
+- Déduplication avec `strava_activity_id`.
+
+### Limitations (version alpha)
+
+- Strava limite par défaut le nombre d’athlètes connectés.
+- En mode “dev”, c’est souvent limité à **1** athlète.
+- Après validation par Strava, la limite peut augmenter.
+
+---
+
+## 📰 Événements spéciaux (/events)
+
+Liste de toutes les news (passées + futures) :
+
+- Filtre **Tous / Futurs / Passés**
+- Ordre :
+  - Tous / Futurs → du plus proche au plus lointain
+  - Passés → du plus récent au plus ancien
+
+### Champs DB news
+
 - `title` (titre)
 - `subtitle` (sous‑titre)
 - `city` (ville)
@@ -98,47 +160,41 @@ Les news sont stockées en base (backend) et chargées via API.
 - `event_date` (date)
 - `image_focus_y` (optionnel, 0–100)
 
-**Focus image**  
-Si `image_focus_y` est renseigné, la background image est positionnée à `50% {image_focus_y}%`.  
-Si vide → centré (50% 50%).
-
-### Comportement front
-Sur le dashboard global:
-- La **news la plus proche dans le temps** est affichée à gauche
-- On affiche 2 news max
-- Zoom léger sur hover **uniquement si lien**
-
-Sur `/events`:
-- Toutes les news, avec tri
-- Zoom léger sur hover si lien
+**Focus image**
+- Si `image_focus_y` est renseigné : background position = `50% {image_focus_y}%`.
+- Si vide : `50% 50%`.
 
 ---
 
 ## 🔌 API (front)
 
-Base API: `REACT_APP_API_BASE` (par défaut `/api`)
+Base API : `REACT_APP_API_BASE` (par défaut `/api`)
 
-Endpoints utilisés:
+### Public
 
-**Public**
 - `GET /sessions`
 - `GET /dashboard/global`
 - `GET /users/public`
 - `GET /news`
 
-**Auth**
+### Auth
+
 - `POST /auth/login`
 - `GET /auth/me`
 
-**User**
+### User
+
 - `GET /me/sessions`
 - `POST /me/sessions`
 - `PUT /me/sessions/:id`
 - `DELETE /me/sessions/:id`
 - `GET /me/challenge`
 - `GET /me/card-results`
+- `GET /me/victory/latest`
+- `POST /me/victory/seen`
 
-**Admin**
+### Admin
+
 - `GET /users`
 - `GET /users/:userId/sessions`
 - `POST /users/:userId/sessions`
@@ -149,7 +205,6 @@ Endpoints utilisés:
 
 ## 🗄️ Backend (news DB)
 
-SQL schema news :
 ```sql
 CREATE TABLE IF NOT EXISTS news_items (
   id CHAR(36) PRIMARY KEY,
@@ -164,7 +219,7 @@ CREATE TABLE IF NOT EXISTS news_items (
 );
 ```
 
-Exemple d’insert:
+Exemple d’insert :
 ```sql
 INSERT INTO news_items (id, title, subtitle, city, image_url, image_focus_y, link_url, event_date)
 VALUES (
@@ -188,7 +243,7 @@ npm install
 npm start
 ```
 
-Accès local:
+Accès local :
 ```
 http://localhost:3000
 ```
@@ -197,7 +252,7 @@ http://localhost:3000
 
 ## ⚙️ Configuration
 
-Exemple `.env`:
+Exemple `.env` (front) :
 ```
 REACT_APP_API_BASE=/api
 ```
@@ -222,20 +277,12 @@ src/
 
 ---
 
-## 🔐 Sécurité & édition
-
-- Édition verrouillée par défaut
-- Login requis pour CRUD
-- Admin peut modifier toutes les données
-
----
-
 ## ✅ Notes de déploiement
 
 ### SPA routing (Apache/Nginx)
 Le front doit renvoyer `index.html` pour toutes les routes (`/user/...`, `/cards`, `/events`).
 
-Exemple Apache `.htaccess`:
+Exemple Apache `.htaccess` :
 ```
 RewriteEngine On
 RewriteBase /
@@ -249,11 +296,49 @@ Si `/news` est bloqué chez l’hébergeur, utilisez `/events`.
 
 ---
 
+## ❓ FAQ / Problèmes fréquents
+
+- **Je ne peux pas éditer.**  
+  Vérifie que tu es connecté (popup). Sans login, l’édition est verrouillée.
+
+- **Je suis connecté mais je ne vois pas mes options.**  
+  Tu dois être sur ton **propre** dashboard pour modifier tes séances.
+
+- **La popup de victoire revient.**  
+  Elle s’affiche seulement pour la dernière victoire non vue.  
+  Si elle revient, vérifie que `last_victory_seen_id` est bien sauvegardé côté user.
+
+- **Je ne peux pas connecter plusieurs athlètes Strava.**  
+  En mode dev, Strava limite souvent à **1 athlète**.  
+  Il faut faire valider l’app pour augmenter la limite.
+
+- **Strava ne redirige pas après autorisation.**  
+  Vérifie que `redirect_uri` correspond **exactement** à celui configuré dans Strava,  
+  et que le domaine est bien déclaré.
+
+- **Strava callback 401 / invalid_state.**  
+  Le paramètre `state` a expiré ou ne correspond pas au user.  
+  Relance la connexion Strava depuis l’app et réessaie immédiatement.
+
+- **Cron bots ne tourne pas / pas de nouveaux défis.**  
+  Vérifie que le cron backend est bien planifié et que le process tourne.  
+  Contrôle les logs et l’heure serveur (UTC vs local).
+
+- **Événements annulés / mauvais jour affiché.**  
+  Vérifie `bot_event_date` côté DB et les fuseaux horaires.  
+  Assure‑toi que l’événement est bien créé en date locale attendue.
+
+- **Je ne vois pas les événements sur /events.**  
+  Vérifie que la table `news_items` contient des données et que l’API `/news` répond.
+
+---
+
 ## 🧪 Tests utiles
 
-Routes rapides:
+Routes rapides :
 - `/events`
 - `/user/:slug?mode=run&range=month`
+- `/user/:slug?card=open`
 
 ---
 
@@ -262,6 +347,7 @@ Routes rapides:
 - UI admin pour créer/éditer/supprimer les news
 - Pagination sur `/events`
 - Carrousel d’événements
+- Historique d’imports Strava
 
 ---
 

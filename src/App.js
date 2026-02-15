@@ -1335,35 +1335,32 @@ export default function App() {
   }, [cardResults, users]);
 
   useEffect(() => {
-    if (!isAuth) return;
-    const victoryTypes = new Set(["defi", "rare", "evenement"]);
-    const results = (cardResults || [])
-      .filter((r) => victoryTypes.has(String(r?.type || "").toLowerCase()))
-      .slice()
-      .sort((a, b) => {
-        const aTs = dayjs(a?.achieved_at_time || a?.achieved_at || 0).valueOf();
-        const bTs = dayjs(b?.achieved_at_time || b?.achieved_at || 0).valueOf();
-        if (aTs !== bTs) return bTs - aTs;
-        return String(b?.id || "").localeCompare(String(a?.id || ""));
-      });
-    const latest = results[0];
-    if (!latest?.id) return;
-
-    const storageKey = "natrack:lastVictoryCardResultId";
-    const lastSeen = user?.last_victory_seen_id || (typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null);
-    if (victoryInfo) return;
-    if (lastSeen && String(lastSeen) === String(latest.id)) return;
-
-    const botName = latest.bot_name || "un bot";
-    const distanceKm = Number(latest.target_distance_m) / 1000;
-    const actualKm = Number(latest.distance_m) / 1000;
-    setVictoryInfo({
-      botId: latest.bot_id,
-      botName,
-      distanceKm: Number.isFinite(distanceKm) ? distanceKm : null,
-      actualKm: Number.isFinite(actualKm) ? actualKm : null,
-    });
-  }, [cardResults, isAuth, victoryInfo, user?.last_victory_seen_id]);
+    if (!isAuth || checking || !authToken) return;
+    if (!user?.id || victoryInfo) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiGet("/me/victory/latest", authToken);
+        if (!alive) return;
+        const latest = data?.victory || null;
+        if (!latest?.id) return;
+        const botName = latest.bot_name || "un bot";
+        const distanceKm = Number(latest.target_distance_m) / 1000;
+        const actualKm = Number(latest.distance_m) / 1000;
+        setVictoryInfo({
+          botId: latest.bot_id,
+          botName,
+          distanceKm: Number.isFinite(distanceKm) ? distanceKm : null,
+          actualKm: Number.isFinite(actualKm) ? actualKm : null,
+        });
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isAuth, checking, authToken, user?.id, victoryInfo]);
 
   useEffect(() => {
     if (!selectedUserInfo?.id || !isAuth || !authToken) {
@@ -1566,7 +1563,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.12{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.13{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
