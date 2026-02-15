@@ -215,19 +215,6 @@ export function NotificationsSection({
                               {cardNotification?.type === "event_start" ? "Ne pas participer" : "Annuler le défi"}
                             </button>
                           )}
-                          {onOpenMyOptions && isAuth && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (typeof window === "undefined") return;
-                                onOpenMyOptions?.();
-                                onCloseNotifInfo();
-                              }}
-                              className="rounded-full border border-emerald-300/70 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-800 hover:bg-emerald-100 dark:border-emerald-400/60 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
-                            >
-                              {cardNotifDetails?.isEvent ? "Participer à l'événement" : "Relever le défi"}
-                            </button>
-                          )}
                         </div>
                         {cardNotification?.created_at && (
                           <div className="mt-6 text-right text-xs text-slate-400 dark:text-slate-500">
@@ -254,6 +241,11 @@ export function NotificationsSection({
                           {n.title || "Notification"}
                         </div>
                         {n.body && <div className="text-sm text-slate-700 dark:text-slate-200">{n.body}</div>}
+                        {(n.type === "challenge_success" || n.type === "event_success") && (
+                          <div className="text-xs text-emerald-600 dark:text-emerald-300">
+                            Victoire enregistrée 🎉
+                          </div>
+                        )}
                         {activeChallenge?.id &&
                           n?.meta?.challenge_id === activeChallenge.id &&
                           activeChallenge?.due_date && (

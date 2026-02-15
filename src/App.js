@@ -258,6 +258,16 @@ export default function App() {
     }
   };
 
+  const markNotificationsRead = async (ids) => {
+    if (!isAuth || !authToken) return;
+    try {
+      await apiJson("POST", "/me/notifications/read", { ids }, authToken);
+      refreshNotifications();
+    } catch {
+      // ignore
+    }
+  };
+
   const toggleSessionLike = async (sessionId) => {
     if (!isAuth || !authToken || !sessionId) return;
     try {
@@ -1149,6 +1159,24 @@ export default function App() {
     toastMs: 2400,
   });
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search || "");
+    const strava = params.get("strava");
+    if (!strava) return;
+    if (strava === "connected") {
+      showToast("Strava connecté");
+    } else if (strava === "error") {
+      showToast("Connexion Strava échouée");
+    }
+    params.delete("strava");
+    const next = params.toString();
+    const base = window.location.pathname || "/";
+    const hash = window.location.hash || "";
+    const url = next ? `${base}?${next}${hash}` : `${base}${hash}`;
+    window.history.replaceState({}, "", url);
+  }, [showToast]);
+
   /* ===== CRUD ===== */
 
   const addSession = guard(async (payload) => {
@@ -1173,6 +1201,14 @@ export default function App() {
     setShowEditModal(false);
     showToast("Seance ajoutée");
   });
+
+  const handleLogout = () => {
+    editLogout();
+    setSelectedUser(null);
+    setShowCardsPage(false);
+    setShowNewsArchive(false);
+    setRouteState({ type: "root", slug: null });
+  };
 
   const deleteSession = guard(async (id) => {
     if (!window.confirm("Confirmer la suppression de cette seance ?")) return;
@@ -1296,6 +1332,45 @@ export default function App() {
       evenementTotal: totals.evenement,
     };
   }, [cardResults, users]);
+
+  useEffect(() => {
+    if (!isAuth) return;
+    const victoryTypes = new Set(["defi", "rare", "evenement"]);
+    const results = (cardResults || [])
+      .filter((r) => victoryTypes.has(String(r?.type || "").toLowerCase()))
+      .slice()
+      .sort((a, b) => {
+        const aTs = dayjs(a?.achieved_at_time || a?.achieved_at || 0).valueOf();
+        const bTs = dayjs(b?.achieved_at_time || b?.achieved_at || 0).valueOf();
+        if (aTs !== bTs) return bTs - aTs;
+        return String(b?.id || "").localeCompare(String(a?.id || ""));
+      });
+    const latest = results[0];
+    if (!latest?.id) return;
+
+    const storageKey = "natrack:lastVictoryCardResultId";
+    const lastSeen = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+    if (victoryInfo) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(storageKey, String(latest.id));
+      }
+      return;
+    }
+    if (lastSeen && String(lastSeen) === String(latest.id)) return;
+
+    const botName = latest.bot_name || "un bot";
+    const distanceKm = Number(latest.target_distance_m) / 1000;
+    const actualKm = Number(latest.distance_m) / 1000;
+    setVictoryInfo({
+      botId: latest.bot_id,
+      botName,
+      distanceKm: Number.isFinite(distanceKm) ? distanceKm : null,
+      actualKm: Number.isFinite(actualKm) ? actualKm : null,
+    });
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, String(latest.id));
+    }
+  }, [cardResults, isAuth, victoryInfo]);
 
   useEffect(() => {
     if (!selectedUserInfo?.id || !isAuth || !authToken) {
@@ -1480,7 +1555,7 @@ export default function App() {
             }
             if (isAuth) {
               if (!window.confirm("Se déconnecter ?")) return;
-              editLogout();
+              handleLogout();
               return;
             }
             setEditModalInitialTab("options");
@@ -1717,6 +1792,7 @@ export default function App() {
                   notificationsLoading={notificationsLoading}
                   notificationsError={notificationsError}
                   onRefreshNotifications={refreshNotifications}
+                  onMarkNotificationRead={markNotificationsRead}
                   activeChallenge={activeChallenge}
                   newsItems={newsItems}
                   newsLoading={newsLoading}
@@ -1754,6 +1830,7 @@ export default function App() {
                   onImportSessions={importCSV}
                   adminPanelOpen={adminPanelOpen}
                   onAdminPanelOpenChange={setAdminPanelOpen}
+                  authToken={authToken}
                   cardsUnlockedCounts={selectedUserCardCounts}
                   activeChallenge={activeChallenge}
                   activeChallengeDueAt={activeChallengeDueAt}

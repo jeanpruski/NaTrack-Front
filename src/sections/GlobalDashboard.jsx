@@ -41,6 +41,7 @@ export function GlobalDashboard({
   notificationsLoading = false,
   notificationsError = "",
   onRefreshNotifications,
+  onMarkNotificationRead,
   onRefresh,
   activeChallenge,
   newsItems = [],
@@ -271,10 +272,18 @@ export function GlobalDashboard({
       const threshold = todayStart.subtract(2, "day").valueOf();
       return created.startOf("day").valueOf() >= threshold;
     }
+    if (n.type === "challenge_success" || n.type === "event_success") {
+      const threshold = todayStart.subtract(7, "day").valueOf();
+      return created.startOf("day").valueOf() >= threshold;
+    }
     return true;
   };
   const realUnreadNotifications = (notifications || [])
-    .filter((n) => !n.read_at && (n.type === "challenge_start" || n.type === "event_start"))
+    .filter(
+      (n) =>
+        !n.read_at &&
+        (n.type === "challenge_start" || n.type === "event_start" || n.type === "challenge_success" || n.type === "event_success")
+    )
     .filter(isFreshNotification);
   const unreadNotifications = adminNotifOverride || realUnreadNotifications;
   const latestUnreadNotification = useMemo(() => {
@@ -564,6 +573,19 @@ export function GlobalDashboard({
   };
 
   const showPull = isRefreshing;
+  const handleToggleNotifInfo = () => {
+    if (!unreadNotifications.length) return;
+    setShowNotifInfo((v) => {
+      const next = !v;
+      if (next && latestUnreadNotification) {
+        const t = String(latestUnreadNotification.type || "");
+        if (t === "challenge_success" || t === "event_success") {
+          onMarkNotificationRead?.([latestUnreadNotification.id]);
+        }
+      }
+      return next;
+    });
+  };
   return (
     <div className="relative grid gap-4 px-4 xl:px-8 pt-4 md:pt-4 xl:pt-0 pb-8">
       <PullToRefreshOverlay show={showPull} />
@@ -588,7 +610,7 @@ export function GlobalDashboard({
           hasUnreadNotif={hasUnreadNotif}
           unreadNotifications={unreadNotifications}
           showNotifInfo={showNotifInfo}
-          onToggleNotifInfo={() => setShowNotifInfo((v) => !v)}
+          onToggleNotifInfo={handleToggleNotifInfo}
           onCloseNotifInfo={() => {
             setShowNotifInfo(false);
             setAdminNotifOverride(null);

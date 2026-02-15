@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AddSessionForm } from "../components/AddSessionForm";
 import { History } from "../components/History";
@@ -12,6 +12,7 @@ import { RecordsAndShareSection } from "./dashboard/RecordsAndShareSection";
 import { UserCardModal } from "./dashboard/UserCardModal";
 import { ActivityCalendarSection } from "./dashboard/ActivityCalendarSection";
 import { useDashboardData } from "../hooks/useDashboardData";
+import { apiGet, apiJson } from "../utils/api";
 
 
 export function Dashboard({
@@ -67,6 +68,7 @@ export function Dashboard({
   onImportSessions,
   adminPanelOpen,
   onAdminPanelOpenChange,
+  authToken,
 }) {
   const showUserCard = Boolean(userCardOpen);
   const setShowUserCard = onUserCardOpenChange || (() => {});
@@ -76,6 +78,15 @@ export function Dashboard({
   const showAdminPanel = adminPanelOpen ?? localAdminPanel;
   const setShowAdminPanel = onAdminPanelOpenChange || setLocalAdminPanel;
   const [adminTab, setAdminTab] = useState("options");
+  const [stravaBusy, setStravaBusy] = useState(false);
+  const [stravaError, setStravaError] = useState("");
+  const [stravaButtonOk, setStravaButtonOk] = useState(true);
+  const [stravaFinalizeUrl, setStravaFinalizeUrl] = useState("");
+  const [stravaFinalizeBusy, setStravaFinalizeBusy] = useState(false);
+  const [stravaFinalizeMsg, setStravaFinalizeMsg] = useState("");
+  const [stravaStatus, setStravaStatus] = useState(null);
+  const [stravaLogs, setStravaLogs] = useState([]);
+  const [stravaLogsLoading, setStravaLogsLoading] = useState(false);
   const {
     displayName,
     cardUser,
@@ -108,6 +119,30 @@ export function Dashboard({
     cardsUnlockedCounts,
     showUserCard,
   });
+
+  const loadStravaStatus = async () => {
+    if (!authToken) return;
+    const data = await apiGet("/strava/status", authToken);
+    setStravaStatus(data || { connected: false });
+  };
+
+  const loadStravaLogs = async () => {
+    if (!authToken) return;
+    setStravaLogsLoading(true);
+    try {
+      const data = await apiGet("/strava/logs?limit=10", authToken);
+      setStravaLogs(Array.isArray(data) ? data : []);
+    } finally {
+      setStravaLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOwnUser) return;
+    if (adminTab !== "settings") return;
+    loadStravaStatus();
+    loadStravaLogs();
+  }, [adminTab, isOwnUser, authToken]);
 
   const dueLabel = isEventChallenge
     ? <>À réaliser avant <span className="underline">demain</span></>
@@ -197,8 +232,194 @@ export function Dashboard({
                 readOnly={!canEditSelected || isBusy}
               />
             ) : (
-              <div className="rounded-2xl border border-dashed border-blue-200/70 bg-white/70 px-4 py-6 text-center text-sm text-blue-900/80 dark:border-blue-400/30 dark:bg-slate-900/30 dark:text-blue-100/70">
-                Settings du joueur (bientôt)
+              <div className="grid gap-4">
+                {!isAdmin && (
+                  <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 px-4 py-4 text-sm text-amber-900 shadow-sm dark:border-amber-400/30 dark:bg-amber-900/20 dark:text-amber-100">
+                    L’intégration Strava est temporairement réservée aux admins.
+                  </div>
+                )}
+                {isAdmin && (
+                  <>
+                    <div className="rounded-2xl border border-blue-200/70 bg-white/70 px-4 py-5 text-sm text-blue-900 shadow-sm dark:border-blue-400/30 dark:bg-slate-900/30 dark:text-blue-100">
+                      <div className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                        Connexion Strava
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                        Connecte ton compte Strava pour importer automatiquement ton dernier run.
+                      </p>
+                      {!isOwnUser && (
+                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                          La connexion Strava est uniquement disponible pour ton propre compte.
+                        </div>
+                      )}
+                      {stravaError && (
+                        <div className="mt-2 text-xs text-rose-600 dark:text-rose-300">
+                          {stravaError}
+                        </div>
+                      )}
+                      {stravaStatus?.connected && (
+                        <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                          Strava connecté{stravaStatus?.athlete_id ? ` (athlete ${stravaStatus.athlete_id})` : ""}.
+                        </div>
+                      )}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {!stravaStatus?.connected && (
+                          <button
+                            type="button"
+                            disabled={!authToken || stravaBusy || !isOwnUser}
+                            onClick={async () => {
+                              if (!authToken || !isOwnUser) return;
+                              setStravaBusy(true);
+                              setStravaError("");
+                              try {
+                                const data = await apiGet("/strava/connect", authToken);
+                                if (data?.url) {
+                                  window.location.href = data.url;
+                                } else {
+                                  setStravaError("URL Strava introuvable.");
+                                }
+                              } catch (e) {
+                                setStravaError(e?.message || "Connexion Strava impossible");
+                              } finally {
+                                setStravaBusy(false);
+                              }
+                            }}
+                            className="inline-flex items-center justify-center rounded-xl bg-transparent p-0 shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                            aria-label="Connect with Strava"
+                          >
+                            {stravaButtonOk ? (
+                              <img
+                                src="/strava/connect-with-strava.png"
+                                alt="Connect with Strava"
+                                className="h-10 w-auto"
+                                onError={() => setStravaButtonOk(false)}
+                              />
+                            ) : (
+                              <span className="rounded-xl bg-sky-500/90 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500">
+                            {stravaBusy ? "Connexion..." : "Connecter Strava"}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                        {stravaStatus?.connected && (
+                          <button
+                            type="button"
+                            disabled={!authToken || stravaBusy || !isOwnUser}
+                            onClick={async () => {
+                              if (!authToken || !isOwnUser) return;
+                              if (!window.confirm("Déconnecter Strava ?")) return;
+                              setStravaBusy(true);
+                              setStravaError("");
+                              try {
+                                await apiJson("POST", "/strava/disconnect", null, authToken);
+                                await loadStravaStatus();
+                                await loadStravaLogs();
+                              } catch (e) {
+                                setStravaError(e?.message || "Déconnexion Strava impossible");
+                              } finally {
+                                setStravaBusy(false);
+                              }
+                            }}
+                            className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-rose-400/40 dark:bg-slate-900/40 dark:text-rose-300 dark:hover:bg-rose-400/10"
+                          >
+                            Déconnecter Strava
+                          </button>
+                        )}
+                        {stravaStatus?.connected && (
+                          <button
+                            type="button"
+                            disabled={!authToken || stravaLogsLoading || !isOwnUser}
+                            onClick={loadStravaLogs}
+                            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800/60"
+                          >
+                            Rafraîchir logs
+                      </button>
+                    )}
+                  </div>
+
+                  {!stravaStatus?.connected && (
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200">
+                      <div className="font-semibold">Si Strava ne te redirige pas</div>
+                      <div className="mt-1 opacity-80">
+                        Copie l’URL de redirection (Network → accept_application → Location) puis colle-la ici.
+                      </div>
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="url"
+                          value={stravaFinalizeUrl}
+                          onChange={(e) => setStravaFinalizeUrl(e.target.value)}
+                          placeholder="https://natrack.prjski.com/api/strava/callback?state=...&code=..."
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                        <button
+                          type="button"
+                          disabled={stravaFinalizeBusy || !stravaFinalizeUrl}
+                          onClick={async () => {
+                            if (!stravaFinalizeUrl) return;
+                            setStravaFinalizeBusy(true);
+                            setStravaFinalizeMsg("");
+                            try {
+                              const url = new URL(stravaFinalizeUrl);
+                              const code = url.searchParams.get("code");
+                              const state = url.searchParams.get("state");
+                              if (!code || !state) {
+                                setStravaFinalizeMsg("URL invalide (code/state manquants).");
+                              } else {
+                                await apiJson("POST", "/strava/exchange", { code, state }, authToken);
+                                await loadStravaStatus();
+                                await loadStravaLogs();
+                                setStravaFinalizeMsg("Strava connecté ✅");
+                              }
+                            } catch (e) {
+                              setStravaFinalizeMsg(e?.message || "Connexion Strava impossible");
+                            } finally {
+                              setStravaFinalizeBusy(false);
+                            }
+                          }}
+                          className="rounded-lg bg-sky-500/90 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-sky-500 disabled:opacity-60"
+                        >
+                          {stravaFinalizeBusy ? "Finalisation..." : "Finaliser"}
+                        </button>
+                      </div>
+                      {stravaFinalizeMsg && (
+                        <div className="mt-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                          {stravaFinalizeMsg}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                    {stravaStatus?.connected && (
+                      <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-4 text-sm text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
+                        <div className="text-base font-semibold">Derniers imports Strava</div>
+                        {stravaLogsLoading ? (
+                          <div className="mt-2 text-xs text-slate-500">Chargement...</div>
+                        ) : !stravaLogs.length ? (
+                          <div className="mt-2 text-xs text-slate-500">Aucun import pour le moment.</div>
+                        ) : (
+                          <div className="mt-3 grid gap-2">
+                            {stravaLogs.map((row) => (
+                              <div
+                                key={row.id}
+                                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-semibold">
+                                    {row.start_datetime || row.date}
+                                  </span>
+                                  <span className="opacity-70">
+                                    {row.distance} m · {row.type}
+                                  </span>
+                                </div>
+                                <div className="opacity-70">#{row.strava_activity_id}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
