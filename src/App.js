@@ -1296,7 +1296,8 @@ export default function App() {
   const hasSessions = shownSessions.length > 0;
   const isGlobalView = !selectedUser;
   const headerTitle = selectedUser ? selectedUser.name : null;
-  const showEditorButton = isGlobalView || (!user || isAdmin || user?.id === selectedUser?.id);
+  const isOwnDashboard = !!(selectedUser && user && String(selectedUser.id) === String(user.id));
+  const showEditorButton = isGlobalView || !!user;
 
   useEffect(() => {
     if (isGlobalView || showCardsPage || showNewsArchive) {
@@ -1517,7 +1518,7 @@ export default function App() {
           isRefreshing={dashboardRefreshing}
           newsFilter={showNewsArchive ? newsFilter : null}
           onNewsFilterChange={setNewsFilter}
-          editorVariant={isGlobalView && isAuth ? "user" : "logout"}
+          editorVariant={isAuth && isOwnDashboard ? "logout" : "user"}
           rangeOptions={rangeOptions}
           cardsFilter={
             showCardsPage
@@ -1549,13 +1550,19 @@ export default function App() {
           editorTargetName={headerTitle}
           loggedUserName={user?.name}
           onOpenEditor={() => {
-            if (isGlobalView && isAuth && user) {
-              setSelectedUser(user);
+            if (isAuth && user && !isOwnDashboard) {
+              if (!selectedUser || String(selectedUser.id) !== String(user.id)) {
+                handleSelectUser(user);
+              }
               return;
             }
-            if (isAuth) {
+            if (isAuth && isOwnDashboard) {
               if (!window.confirm("Se déconnecter ?")) return;
               handleLogout();
+              return;
+            }
+            if (isAuth && isGlobalView && user) {
+              setSelectedUser(user);
               return;
             }
             setEditModalInitialTab("options");
