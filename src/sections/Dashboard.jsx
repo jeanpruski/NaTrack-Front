@@ -113,7 +113,7 @@ export function Dashboard({
     ? <>À réaliser avant <span className="underline">demain</span></>
     : (
         <>
-          À réaliser avant le <span className="underline">{formattedDueDate}</span>
+          À réaliser au plus tard le <span className="underline">{formattedDueDate}</span>
         </>
       );
 

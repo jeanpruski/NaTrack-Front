@@ -9,7 +9,6 @@ import {
   Lock,
   LockOpen,
   Newspaper,
-  RefreshCw,
   Sparkles,
   Swords,
   User,
@@ -338,17 +337,6 @@ export function AppHeader({
                 </button>
               )}
 
-              {onRefresh && (
-                <button
-                  type="button"
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  aria-label="Rafraîchir"
-                  className="inline-flex items-center justify-center rounded-xl bg-sky-500/80 px-3 py-2 text-sm text-white shadow-sm transition hover:bg-sky-500/90 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-sky-500/70 dark:hover:bg-sky-500/80"
-                >
-                  <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
-                </button>
-              )}
             </div>
           )}
 

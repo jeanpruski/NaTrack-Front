@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { Reveal } from "../components/Reveal";
+import { RefreshCw } from "lucide-react";
 import { formatKmFixed } from "../utils/appUtils";
 import { buildMonthKeys } from "../utils/globalDashboard";
 import { NewsSection } from "./global/NewsSection";
@@ -40,6 +41,7 @@ export function GlobalDashboard({
   notificationsLoading = false,
   notificationsError = "",
   onRefreshNotifications,
+  onRefresh,
   activeChallenge,
   newsItems = [],
   newsLoading = false,
@@ -455,7 +457,7 @@ export function GlobalDashboard({
     const kind = isEvent ? "event" : botCardType === "rare" ? "rare" : "defi";
     const prefix = kind === "event" ? "Événement" : "";
     const challengeMatch = body.match(
-      /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) avant le (.+) pour gagner sa carte !$/i
+      /^\[([^\]]+)\] te défie à la course, cours ([0-9.,\s]+km) (?:avant le|au plus tard le) (.+) pour gagner sa carte !$/i
     );
     const eventMatch = body.match(
       /^Fais\s+([0-9.,\s]+)\s*km\s+aujourd'hui\s+pour\s+gagner\s+la\s+carte\s+(.+)$/i
@@ -515,7 +517,7 @@ export function GlobalDashboard({
     }
     if (!dueLabel && !isEvent) {
       const baseDate = cardNotification?.created_at ? dayjs(cardNotification.created_at) : dayjs();
-      const fallback = baseDate.add(3, "day");
+      const fallback = baseDate.add(2, "day");
       const formatted = formatEventDate(fallback.format("YYYY-MM-DD"));
       dueLabel = formatted || null;
     }
@@ -565,6 +567,17 @@ export function GlobalDashboard({
   return (
     <div className="relative grid gap-4 px-4 xl:px-8 pt-4 md:pt-4 xl:pt-0 pb-8">
       <PullToRefreshOverlay show={showPull} />
+      {onRefresh && (
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          aria-label="Rafraîchir"
+          className="fixed bottom-6 right-4 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-sky-500/90 text-white shadow-lg transition hover:bg-sky-500 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
+        </button>
+      )}
       <div
         className={`transition-[filter] duration-500 ease-out ${showPull ? "blur-[2px]" : "blur-0"}`}
       >

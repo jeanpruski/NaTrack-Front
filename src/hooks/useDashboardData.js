@@ -83,7 +83,12 @@ export function useDashboardData({
     const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
     const day = cap(parts[0]);
     const month = cap(parts[2]);
-    return `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`;
+    const base = `${day} ${parts[1]} ${month} ${parts.slice(3).join(" ")}`;
+    const weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+    const hasDay = weekdays.some((w) => base.startsWith(w));
+    if (hasDay) return base;
+    const dayName = cap(dayjs(dateValue).locale("fr").format("dddd"));
+    return dayName ? `${dayName} ${base}` : base;
   }, [activeChallenge, activeChallengeDueAt, eventCancelInfo, isEventChallenge]);
 
   const challengeKm = activeChallenge?.target_distance_m

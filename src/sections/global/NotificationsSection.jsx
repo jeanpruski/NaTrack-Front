@@ -33,6 +33,21 @@ export function NotificationsSection({
   nfDecimal,
 }) {
   if (!isAuth || !onOpenCards) return null;
+  const ensureDayName = (label) => {
+    if (!label) return label;
+    const weekdays = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+    const lower = String(label).trim().toLowerCase();
+    if (weekdays.some((w) => lower.startsWith(w))) return label;
+    if (activeChallenge?.due_date) {
+      const d = dayjs(activeChallenge.due_date).locale("fr");
+      if (d.isValid()) {
+        const dayName = d.format("dddd");
+        const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+        return `${cap(dayName)} ${label}`;
+      }
+    }
+    return label;
+  };
 
   return (
     <Reveal as="section">
@@ -120,10 +135,11 @@ export function NotificationsSection({
                                         const cleaned = raw
                                           .replace(/\s*à\s*\d{1,2}(:\d{2}|h\d{2}).*$/i, "")
                                           .trim();
+                                        const withDay = ensureDayName(cleaned || cardNotifDetails.dueLabel);
                                         return (
                                           <>
-                                            A réaliser avant le{" "}
-                                            <span className="font-semibold">{cleaned || cardNotifDetails.dueLabel}</span>
+                                            A réaliser au plus tard le{" "}
+                                            <span className="font-semibold">{withDay}</span>
                                             {cardNotifDetails?.dueIsEvent ? " (pour cause d'événement)" : ""}
                                           </>
                                         );
