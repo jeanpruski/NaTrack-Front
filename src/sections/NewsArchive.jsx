@@ -91,6 +91,7 @@ export function NewsArchive({ newsItems = [], loading = false, error = "", filte
               <div className="grid gap-3 md:grid-cols-2">
                 {filteredItems.map((item) => {
                   const ready = !!imageReadyMap[item.id];
+                  const showEventDate = Number(item?.show_event_date ?? 1) !== 0;
                   const content = (
                     <>
                       {!ready && (
@@ -103,10 +104,16 @@ export function NewsArchive({ newsItems = [], loading = false, error = "", filte
                         <div className="text-sm font-semibold uppercase tracking-wide text-slate-100/80">
                           {item.title}
                         </div>
-                        <div className="mt-1 text-xl font-semibold">
-                          {formatEventDate(item.event_date)}{" "}
-                          {item.city ? <span className="italic font-normal">({item.city})</span> : null}
-                        </div>
+                        {showEventDate ? (
+                          <div className="mt-1 text-xl font-semibold">
+                            {formatEventDate(item.event_date)}{" "}
+                            {item.city ? <span className="italic font-normal">({item.city})</span> : null}
+                          </div>
+                        ) : item.city ? (
+                          <div className="mt-1 text-sm font-semibold italic text-slate-100/85">
+                            {item.city}
+                          </div>
+                        ) : null}
                         {item.subtitle ? (
                           <div className="mt-auto text-sm font-medium italic text-slate-100/80">
                             « {item.subtitle} »

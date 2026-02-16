@@ -12,10 +12,13 @@ export function RecentActivitiesSection({
   currentUserId,
   isAuth,
   sessionLikesSet,
+  sessionLikePendingSet,
   onToggleSessionLike,
   onSelectUser,
 }) {
   if (!showRecentActivityCard || !recentActivities.length) return null;
+  const pendingSet =
+    sessionLikePendingSet instanceof Set ? sessionLikePendingSet : new Set(sessionLikePendingSet || []);
 
   return (
     <Reveal as="section">
@@ -59,6 +62,7 @@ export function RecentActivitiesSection({
                       const isMine = currentUserId && row.userId && String(row.userId) === String(currentUserId);
                       const canLike = !!(isAuth && !isMine && row.sessionId);
                       const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
+                      const isPending = canLike && pendingSet.has(String(row.sessionId));
                       const handleOpen = () => {
                         if (!targetUser) return;
                         onSelectUser?.(targetUser);
@@ -87,18 +91,19 @@ export function RecentActivitiesSection({
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              disabled={!canLike}
+                              disabled={!canLike || isPending}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (!canLike) return;
+                                if (!canLike || isPending) return;
                                 onToggleSessionLike?.(row.sessionId);
                               }}
                               className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition ${
                                 canLike
                                   ? "text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30"
                                   : "text-slate-400"
-                              }`}
+                              } ${isPending ? "opacity-70" : ""}`}
                               aria-label={isLiked ? "Retirer le like" : "Liker l'activité"}
+                              aria-busy={isPending}
                             >
                               <span>{row.likesCount}</span>
                               <Heart
@@ -107,6 +112,9 @@ export function RecentActivitiesSection({
                                   canLike ? "" : "opacity-60"
                                 }`}
                               />
+                              {isPending ? (
+                                <span className="inline-flex h-3 w-3 animate-spin rounded-full border-2 border-rose-400/70 border-t-transparent" />
+                              ) : null}
                             </button>
                           </div>
                           <span className="truncate font-medium">
@@ -149,6 +157,7 @@ export function RecentActivitiesSection({
                   const isMine = currentUserId && row.userId && String(row.userId) === String(currentUserId);
                   const canLike = !!(isAuth && !isMine && row.sessionId);
                   const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
+                  const isPending = canLike && pendingSet.has(String(row.sessionId));
                   const handleOpen = () => {
                     if (!targetUser) return;
                     onSelectUser?.(targetUser);
@@ -201,18 +210,19 @@ export function RecentActivitiesSection({
                           <div className="font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</div>
                           <button
                             type="button"
-                            disabled={!canLike}
+                            disabled={!canLike || isPending}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!canLike) return;
+                              if (!canLike || isPending) return;
                               onToggleSessionLike?.(row.sessionId);
                             }}
                             className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition ${
                               canLike
                                 ? "text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30"
                                 : "text-slate-400"
-                            }`}
+                            } ${isPending ? "opacity-70" : ""}`}
                             aria-label={isLiked ? "Retirer le like" : "Liker l'activité"}
+                            aria-busy={isPending}
                           >
                             <span>{row.likesCount}</span>
                             <Heart
@@ -221,6 +231,9 @@ export function RecentActivitiesSection({
                                 canLike ? "" : "opacity-60"
                               }`}
                             />
+                            {isPending ? (
+                              <span className="inline-flex h-3 w-3 animate-spin rounded-full border-2 border-rose-400/70 border-t-transparent" />
+                            ) : null}
                           </button>
                         </div>
                       </div>

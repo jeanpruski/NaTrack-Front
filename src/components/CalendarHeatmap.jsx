@@ -76,23 +76,34 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
   const { weeks, activeDays, totalDays } = useMemo(() => {
     const { start, end } = getRangeBounds(range, sessions, seasonStartDate, seasonEndDate);
     const counts = new Map();
+    let maxSwimKm = 0;
+    let maxRunKm = 0;
 
     sessions.forEach((s) => {
       const key = toKey(s.date);
       const type = (s.type || "swim").toLowerCase() === "run" ? "run" : "swim";
-      const prev = counts.get(key) || { swim: 0, run: 0, swimKm: 0, runKm: 0 };
+      const prev = counts.get(key) || {
+        swim: 0,
+        run: 0,
+        swimKm: 0,
+        runKm: 0,
+        swimMaxKm: 0,
+        runMaxKm: 0,
+      };
       const km = Number(s.distance) / 1000;
+      const safeKm = Number.isFinite(km) ? km : 0;
       if (type === "run") prev.run += 1;
       else prev.swim += 1;
-      if (type === "run") prev.runKm += Number.isFinite(km) ? km : 0;
-      else prev.swimKm += Number.isFinite(km) ? km : 0;
+      if (type === "run") {
+        prev.runKm += safeKm;
+        prev.runMaxKm = Math.max(prev.runMaxKm, safeKm);
+        maxRunKm = Math.max(maxRunKm, safeKm);
+      } else {
+        prev.swimKm += safeKm;
+        prev.swimMaxKm = Math.max(prev.swimMaxKm, safeKm);
+        maxSwimKm = Math.max(maxSwimKm, safeKm);
+      }
       counts.set(key, prev);
-    });
-
-    let maxCount = 0;
-    counts.forEach((value) => {
-      const total = value.swim + value.run;
-      if (total > maxCount) maxCount = total;
     });
 
     const weekStart = start.startOf("week");
@@ -107,11 +118,15 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
       const key = d.format("YYYY-MM-DD");
       const inRange = (d.isSame(start, "day") || d.isAfter(start, "day"))
         && (d.isSame(end, "day") || d.isBefore(end, "day"));
-      const dayCounts = counts.get(key) || { swim: 0, run: 0, swimKm: 0, runKm: 0 };
+      const dayCounts = counts.get(key) || {
+        swim: 0,
+        run: 0,
+        swimKm: 0,
+        runKm: 0,
+        swimMaxKm: 0,
+        runMaxKm: 0,
+      };
       const count = dayCounts.swim + dayCounts.run;
-      if (inRange && count > 0) {
-        maxCount = Math.max(maxCount, count);
-      }
       days.push({
         date: d,
         key,
@@ -121,6 +136,8 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
         run: dayCounts.run,
         swimKm: dayCounts.swimKm,
         runKm: dayCounts.runKm,
+        swimMaxKm: dayCounts.swimMaxKm,
+        runMaxKm: dayCounts.runMaxKm,
       });
     }
 
@@ -137,16 +154,17 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
       if (d.count > 0) active += 1;
     });
 
-    const getLevel = (count) => {
-      if (count <= 0) return 0;
-      if (maxCount <= 1) return 4;
-      return Math.min(4, Math.ceil((count / maxCount) * 4));
+    const getLevel = (value, max) => {
+      if (value <= 0) return 0;
+      if (max <= 0) return 0;
+      return Math.max(1, Math.min(4, Math.ceil((value / max) * 4)));
     };
 
     const weeksWithLevels = weeksList.map((week) =>
       week.map((day) => ({
         ...day,
-        level: getLevel(day.count),
+        swimLevel: getLevel(day.swimMaxKm, maxSwimKm),
+        runLevel: getLevel(day.runMaxKm, maxRunKm),
       }))
     );
 
@@ -276,12 +294,12 @@ export function CalendarHeatmap({ sessions, range, seasonStartDate = null, seaso
                   style = {};
                 } else if (isMix) {
                   style = {
-                    background: `linear-gradient(135deg, ${SWIM_COLORS[day.level]} 0%, ${RUN_COLORS[day.level]} 100%)`,
+                    background: `linear-gradient(135deg, ${SWIM_COLORS[day.swimLevel]} 0%, ${RUN_COLORS[day.runLevel]} 100%)`,
                   };
                 } else if (isSwimOnly) {
-                  style = { backgroundColor: SWIM_COLORS[day.level] };
+                  style = { backgroundColor: SWIM_COLORS[day.swimLevel] };
                 } else if (isRunOnly) {
-                  style = { backgroundColor: RUN_COLORS[day.level] };
+                  style = { backgroundColor: RUN_COLORS[day.runLevel] };
                 }
                 const baseClass = day.inRange
                   ? day.count === 0

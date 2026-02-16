@@ -31,6 +31,7 @@ export function GlobalDashboard({
   nfDecimal,
   onSelectUser,
   sessionLikes,
+  sessionLikePending,
   onToggleSessionLike,
   onOpenCards,
   onOpenNewsArchive,
@@ -64,6 +65,10 @@ export function GlobalDashboard({
     if (sessionLikes instanceof Set) return sessionLikes;
     return new Set(sessionLikes || []);
   }, [sessionLikes]);
+  const sessionLikePendingSet = useMemo(() => {
+    if (sessionLikePending instanceof Set) return sessionLikePending;
+    return new Set(sessionLikePending || []);
+  }, [sessionLikePending]);
   const showRecentActivityCard = useMemo(() => {
     if (range === "all" || range === "month" || range === "3m") return true;
     if (String(range || "").startsWith("season:") && activeSeasonNumber !== null && activeSeasonNumber !== undefined) {
@@ -639,6 +644,7 @@ export function GlobalDashboard({
           currentUserId={currentUserId}
           isAuth={isAuth}
           sessionLikesSet={sessionLikesSet}
+          sessionLikePendingSet={sessionLikePendingSet}
           onToggleSessionLike={onToggleSessionLike}
           onSelectUser={onSelectUser}
         />

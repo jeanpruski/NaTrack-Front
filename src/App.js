@@ -143,8 +143,14 @@ export default function App() {
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [pullActive, setPullActive] = useState(false);
+  const [sessionLikePending, setSessionLikePending] = useState(() => new Set());
 
   const [loadingPhase, setLoadingPhase] = useState("loading"); // loading | fading | done
+
+  const sessionLikePendingRef = useRef(new Set());
+  const likePendingTimersRef = useRef(new Map());
+  const likePendingStartRef = useRef(new Map());
+  const MIN_LIKE_SPINNER_MS = 450;
 
   useEffect(() => {
     let alive = true;
@@ -214,6 +220,50 @@ export default function App() {
 
   const [selectedUserCardCounts, setSelectedUserCardCounts] = useState(null);
 
+  useEffect(() => {
+    sessionLikePendingRef.current = sessionLikePending;
+  }, [sessionLikePending]);
+
+  useEffect(() => {
+    return () => {
+      likePendingTimersRef.current.forEach((timer) => clearTimeout(timer));
+      likePendingTimersRef.current.clear();
+      likePendingStartRef.current.clear();
+    };
+  }, []);
+
+  const markSessionLikePending = (sessionId) => {
+    const key = String(sessionId);
+    likePendingStartRef.current.set(key, Date.now());
+    setSessionLikePending((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const clearSessionLikePending = (sessionId) => {
+    const key = String(sessionId);
+    const start = likePendingStartRef.current.get(key) ?? Date.now();
+    const elapsed = Date.now() - start;
+    const remaining = Math.max(MIN_LIKE_SPINNER_MS - elapsed, 0);
+    if (likePendingTimersRef.current.has(key)) {
+      clearTimeout(likePendingTimersRef.current.get(key));
+    }
+    const timer = setTimeout(() => {
+      setSessionLikePending((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      likePendingStartRef.current.delete(key);
+      likePendingTimersRef.current.delete(key);
+    }, remaining);
+    likePendingTimersRef.current.set(key, timer);
+  };
+
   const refreshGlobalDashboard = async ({ includeNews = true } = {}) => {
     const now = Date.now();
     if (now - lastRefreshTsRef.current < 1200) return;
@@ -261,6 +311,9 @@ export default function App() {
 
   const toggleSessionLike = async (sessionId) => {
     if (!isAuth || !authToken || !sessionId) return;
+    const key = String(sessionId);
+    if (sessionLikePendingRef.current.has(key)) return;
+    markSessionLikePending(sessionId);
     try {
       const res = await apiJson("POST", `/sessions/${sessionId}/like`, null, authToken);
       const liked = !!res?.liked;
@@ -283,6 +336,8 @@ export default function App() {
       }
     } catch {
       showToast("Impossible de liker");
+    } finally {
+      clearSessionLikePending(sessionId);
     }
   };
 
@@ -1563,7 +1618,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.13{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.14{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
@@ -1800,6 +1855,7 @@ export default function App() {
                   onSelectUser={handleSelectUser}
                   currentUserId={user?.id || null}
                   sessionLikes={sessionLikes}
+                  sessionLikePending={sessionLikePending}
                   onToggleSessionLike={toggleSessionLike}
                   isRefreshing={dashboardRefreshing}
                   pullActive={pullActive}
