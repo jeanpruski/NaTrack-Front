@@ -16,6 +16,7 @@ export function useAppData({ authToken, isAuth, setError }) {
   const [activeChallenge, setActiveChallenge] = useState(null);
   const [sessionLikes, setSessionLikes] = useState(new Set());
   const [cardResults, setCardResults] = useState([]);
+  const [userCardResults, setUserCardResults] = useState([]);
 
   const refreshSessions = async ({ shouldUpdate } = {}) => {
     try {
@@ -96,6 +97,19 @@ export function useAppData({ authToken, isAuth, setError }) {
       setCardResults(Array.isArray(data) ? data : []);
     } catch {
       setCardResults([]);
+    }
+  };
+
+  const refreshUserCardResults = async () => {
+    if (!isAuth || !authToken) {
+      setUserCardResults([]);
+      return;
+    }
+    try {
+      const data = await apiGet("/me/user-card-results", authToken);
+      setUserCardResults(Array.isArray(data) ? data : []);
+    } catch {
+      setUserCardResults([]);
     }
   };
 
@@ -203,16 +217,19 @@ export function useAppData({ authToken, isAuth, setError }) {
     activeChallenge,
     sessionLikes,
     cardResults,
+    userCardResults,
     refreshSessions,
     refreshUsers,
     refreshNews,
     refreshNotifications,
     refreshSessionLikes,
     refreshCardResults,
+    refreshUserCardResults,
     refreshChallenge,
     setNotifications,
     setNotificationsError,
     setSessionLikes,
     setActiveChallenge,
+    setUserCardResults,
   };
 }

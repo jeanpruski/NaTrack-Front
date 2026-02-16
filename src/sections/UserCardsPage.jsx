@@ -1,15 +1,17 @@
-import React, { useMemo, useCallback, useState, useEffect } from "react";
+import React, { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 import { Trophy } from "lucide-react";
 import { UserHoloCard } from "../components/UserHoloCard";
 import { InfoPopover } from "../components/InfoPopover";
-import { apiGet } from "../utils/api";
+import { apiGet, apiJson } from "../utils/api";
 import { formatKmFixed } from "../utils/appUtils";
 
 export function UserCardsPage({
   users,
+  sessions = [],
+  activeSeasonInfo = null,
   nfDecimal,
   onSelectUser,
   onOpenResults,
@@ -22,6 +24,8 @@ export function UserCardsPage({
   isAuth = false,
   authToken = null,
   cardResults = [],
+  userCardResults = [],
+  onUserCardResultsSaved,
   scrollToUserId = null,
   compactView: compactViewProp = null,
   onCompactViewChange = null,
@@ -32,9 +36,11 @@ export function UserCardsPage({
   const [resultsMessage, setResultsMessage] = useState("");
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsError, setResultsError] = useState("");
+  const [resultsCount, setResultsCount] = useState(0);
   const [highlightId, setHighlightId] = useState(null);
   const [highlightFadeOut, setHighlightFadeOut] = useState(false);
   const [compactViewLocal, setCompactViewLocal] = useState(false);
+  const userCardSyncRef = useRef(new Set());
   const compactView = compactViewProp ?? compactViewLocal;
   const setCompactView = useCallback(
     (next) => {
@@ -72,6 +78,14 @@ export function UserCardsPage({
     });
     return { usersOnlyByDate: realUsers, botsOnlyByDate: bots, botsOnlyByAvg: botsByAvg };
   }, [sorted]);
+
+  const realUserIdSet = useMemo(() => {
+    const set = new Set();
+    usersOnlyByDate.forEach((u) => {
+      if (u?.id !== undefined && u?.id !== null) set.add(String(u.id));
+    });
+    return set;
+  }, [usersOnlyByDate]);
 
   const botsByAvgDesc = useMemo(() => {
     const list = [...botsOnlyByAvg];
@@ -122,6 +136,118 @@ export function UserCardsPage({
     return set;
   }, [cardResults]);
 
+  const seasonBounds = useMemo(() => {
+    const startRaw = activeSeasonInfo?.start_date || null;
+    if (!startRaw) return null;
+    const start = dayjs(startRaw).startOf("day");
+    if (!start.isValid()) return null;
+    const end = activeSeasonInfo?.next_start_date
+      ? dayjs(activeSeasonInfo.next_start_date).subtract(1, "day").endOf("day")
+      : dayjs().endOf("day");
+    return { start, end };
+  }, [activeSeasonInfo]);
+
+  const computedUserCardResults = useMemo(() => {
+    if (!currentUserId || !seasonBounds) return [];
+    const { start, end } = seasonBounds;
+    const byUser = new Map();
+    (sessions || []).forEach((s) => {
+      if (!s?.user_id || !s?.date) return;
+      if (!realUserIdSet.has(String(s.user_id))) return;
+      const type = String(s.type || "").toLowerCase();
+      if (type !== "run") return;
+      const d = dayjs(s.date);
+      if (!d.isValid()) return;
+      if (d.isBefore(start, "day") || d.isAfter(end, "day")) return;
+      const dateKey = d.format("YYYY-MM-DD");
+      const dist = Number(s.distance) || 0;
+      if (!byUser.has(s.user_id)) byUser.set(s.user_id, new Map());
+      const map = byUser.get(s.user_id);
+      const prev = map.get(dateKey) || 0;
+      if (dist > prev) map.set(dateKey, dist);
+    });
+    const myMap = byUser.get(currentUserId);
+    if (!myMap) return [];
+    const results = [];
+    byUser.forEach((dateMap, userId) => {
+      if (String(userId) === String(currentUserId)) return;
+      dateMap.forEach((otherDist, dateKey) => {
+        const myDist = myMap.get(dateKey);
+        if (!myDist || myDist < otherDist) return;
+        results.push({
+          target_user_id: userId,
+          achieved_at: dateKey,
+          distance_m: myDist,
+          target_distance_m: otherDist,
+        });
+      });
+    });
+    return results;
+  }, [sessions, currentUserId, seasonBounds, realUserIdSet]);
+
+  const combinedUserCardResults = useMemo(() => {
+    const map = new Map();
+    (userCardResults || []).forEach((r) => {
+      if (!r?.target_user_id || !r?.achieved_at) return;
+      map.set(`${r.target_user_id}|${r.achieved_at}`, r);
+    });
+    (computedUserCardResults || []).forEach((r) => {
+      if (!r?.target_user_id || !r?.achieved_at) return;
+      const key = `${r.target_user_id}|${r.achieved_at}`;
+      if (!map.has(key)) map.set(key, r);
+    });
+    return Array.from(map.values());
+  }, [userCardResults, computedUserCardResults]);
+
+  const userResultsCountById = useMemo(() => {
+    const map = new Map();
+    (combinedUserCardResults || []).forEach((r) => {
+      if (!r?.target_user_id) return;
+      const key = String(r.target_user_id);
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+  }, [combinedUserCardResults]);
+
+  const unlockedUserIds = useMemo(() => {
+    const set = new Set();
+    (combinedUserCardResults || []).forEach((r) => {
+      if (r?.target_user_id !== undefined && r?.target_user_id !== null) {
+        set.add(String(r.target_user_id));
+      }
+    });
+    if (currentUserId !== null && currentUserId !== undefined) {
+      set.add(String(currentUserId));
+    }
+    return set;
+  }, [combinedUserCardResults, currentUserId]);
+
+  useEffect(() => {
+    if (!isAuth || !authToken) return;
+    if (!computedUserCardResults.length) return;
+    const existing = new Set(
+      (userCardResults || [])
+        .filter((r) => r?.target_user_id && r?.achieved_at)
+        .map((r) => `${r.target_user_id}|${r.achieved_at}`)
+    );
+    const pending = computedUserCardResults.filter((r) => {
+      const key = `${r.target_user_id}|${r.achieved_at}`;
+      if (existing.has(key)) return false;
+      if (userCardSyncRef.current.has(key)) return false;
+      return true;
+    });
+    if (!pending.length) return;
+    pending.forEach((r) => userCardSyncRef.current.add(`${r.target_user_id}|${r.achieved_at}`));
+    (async () => {
+      try {
+        await apiJson("POST", "/me/user-card-results", { results: pending }, authToken);
+        onUserCardResultsSaved?.();
+      } catch {
+        pending.forEach((r) => userCardSyncRef.current.delete(`${r.target_user_id}|${r.achieved_at}`));
+      }
+    })();
+  }, [computedUserCardResults, userCardResults, isAuth, authToken, onUserCardResultsSaved]);
+
   const filteredUsers = useMemo(() => {
     if (filter === "users") {
       if (!currentUserId) return usersSortedByAvg;
@@ -148,10 +274,21 @@ export function UserCardsPage({
     [showAllCardsFront, unlockedBotIds]
   );
 
+  const isLockedUser = useCallback(
+    (u) =>
+      !u?.is_bot &&
+      !showAllCardsFront &&
+      u?.id !== undefined &&
+      u?.id !== null &&
+      String(u.id) !== String(currentUserId) &&
+      !unlockedUserIds.has(String(u.id)),
+    [showAllCardsFront, unlockedUserIds, currentUserId]
+  );
+
   const visibleUsers = useMemo(() => {
     if (!hideLockedCards) return filteredUsers;
-    return filteredUsers.filter((u) => !isLockedBot(u));
-  }, [filteredUsers, hideLockedCards, isLockedBot]);
+    return filteredUsers.filter((u) => !isLockedBot(u) && !isLockedUser(u));
+  }, [filteredUsers, hideLockedCards, isLockedBot, isLockedUser]);
 
   useEffect(() => {
     if (!showResultsInfo || !resultsUser?.id) return;
@@ -164,9 +301,14 @@ export function UserCardsPage({
     setResultsLoading(true);
     setResultsError("");
     setResultsMessage("");
+    setResultsCount(0);
     (async () => {
       try {
-        const data = await apiGet(`/me/card-results?bot_id=${encodeURIComponent(resultsUser.id)}`, authToken);
+        const isBotTarget = !!resultsUser?.is_bot;
+        const endpoint = isBotTarget
+          ? `/me/card-results?bot_id=${encodeURIComponent(resultsUser.id)}`
+          : `/me/user-card-results?target_user_id=${encodeURIComponent(resultsUser.id)}`;
+        const data = await apiGet(endpoint, authToken);
         if (!alive) return;
         const formatResultDate = (value) => {
           if (!value) return "—";
@@ -205,6 +347,7 @@ export function UserCardsPage({
           if (aTs !== bTs) return bTs - aTs;
           return String(b.id || "").localeCompare(String(a.id || ""));
         });
+        setResultsCount(rows.length);
         if (!rows.length) {
           setResultsRows([]);
           setResultsMessage("Aucun résultat pour le moment.");
@@ -284,7 +427,7 @@ export function UserCardsPage({
                 showBotAverage
                 minSpinnerMs={500}
                 userRunningAvgKm={!previewUser?.is_bot ? userRunningAvgById?.get(previewUser.id) : null}
-                showBackOnly={isLockedBot(previewUser)}
+                showBackOnly={isLockedBot(previewUser) || isLockedUser(previewUser)}
                 autoTiltVariant="soft"
                 userRankInfo={{
                   index: previewUser?.is_bot ? botRankById.get(previewUser.id) : userRankById.get(previewUser.id),
@@ -314,8 +457,13 @@ export function UserCardsPage({
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300">
                         <Trophy size={20} />
                       </div>
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
-                        Résultats contre {resultsUser?.name || ""}
+                      <div>
+                        <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl">
+                          Résultats contre {resultsUser?.name || ""}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {resultsCount} résultat{resultsCount > 1 ? "s" : ""}
+                        </div>
                       </div>
                     </div>
                     {resultsMessage ? (
@@ -430,7 +578,7 @@ export function UserCardsPage({
                 showBotAverage
                 minSpinnerMs={500}
                 userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
-                showBackOnly={isLockedBot(u)}
+                showBackOnly={isLockedBot(u) || isLockedUser(u)}
                 disableTilt={compactView}
                 compact={compactView}
                 autoTiltVariant="soft"
@@ -440,9 +588,22 @@ export function UserCardsPage({
                 }}
               />
             </div>
-            {!compactView && !(u?.is_bot && !showAllCardsFront && !unlockedBotIds.has(String(u.id))) ? (
+            {!compactView && !(isLockedBot(u) || isLockedUser(u)) ? (
               <div className="flex items-center gap-2">
                 {!!u?.is_bot && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResultsUser(u);
+                      setShowResultsInfo(true);
+                      onOpenResults?.(u);
+                    }}
+                    className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                  >
+                    Résultats
+                  </button>
+                )}
+                {!u?.is_bot && String(u.id) !== String(currentUserId) && (
                   <button
                     type="button"
                     onClick={() => {

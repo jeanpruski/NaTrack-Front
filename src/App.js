@@ -73,17 +73,20 @@ export default function App() {
     activeChallenge,
     sessionLikes,
     cardResults,
+    userCardResults,
     refreshSessions,
     refreshUsers,
     refreshNews,
     refreshNotifications,
     refreshSessionLikes,
     refreshCardResults,
+    refreshUserCardResults,
     refreshChallenge,
     setNotifications,
     setNotificationsError,
     setSessionLikes,
     setActiveChallenge,
+    setUserCardResults,
   } = useAppData({ authToken, isAuth, setError });
   const [showEditModal, setShowEditModal] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
@@ -404,6 +407,7 @@ export default function App() {
       setNotifications([]);
       setNotificationsError("");
       setSessionLikes(new Set());
+      setUserCardResults([]);
     }
   }, [isAuth]);
 
@@ -412,6 +416,7 @@ export default function App() {
     refreshNotifications();
     refreshChallenge();
     refreshCardResults();
+    refreshUserCardResults();
     refreshSessionLikes();
   }, [isAuth, authToken]);
 
@@ -1859,6 +1864,8 @@ export default function App() {
               ) : showCardsPage ? (
                 <UserCardsPage
                   users={users}
+                  sessions={sessions}
+                  activeSeasonInfo={activeSeasonInfo}
                   nfDecimal={nfDecimal}
                   userRunningAvgById={userRunningAvgById}
                   filter={cardsFilter}
@@ -1871,6 +1878,8 @@ export default function App() {
                   isAuth={isAuth}
                   authToken={authToken}
                   cardResults={cardResults}
+                  userCardResults={userCardResults}
+                  onUserCardResultsSaved={refreshUserCardResults}
                   scrollToUserId={scrollToCardId}
                   onSelectUser={(u) => {
                     setShowCardsPage(false);
