@@ -23,6 +23,8 @@ export function UserCardsPage({
   authToken = null,
   cardResults = [],
   scrollToUserId = null,
+  compactView: compactViewProp = null,
+  onCompactViewChange = null,
 }) {
   const [showResultsInfo, setShowResultsInfo] = useState(false);
   const [resultsUser, setResultsUser] = useState(null);
@@ -32,7 +34,18 @@ export function UserCardsPage({
   const [resultsError, setResultsError] = useState("");
   const [highlightId, setHighlightId] = useState(null);
   const [highlightFadeOut, setHighlightFadeOut] = useState(false);
-  const [compactView, setCompactView] = useState(false);
+  const [compactViewLocal, setCompactViewLocal] = useState(false);
+  const compactView = compactViewProp ?? compactViewLocal;
+  const setCompactView = useCallback(
+    (next) => {
+      const nextValue = typeof next === "function" ? next(compactView) : next;
+      if (compactViewProp === null || compactViewProp === undefined) {
+        setCompactViewLocal(nextValue);
+      }
+      onCompactViewChange?.(nextValue);
+    },
+    [compactView, compactViewProp, onCompactViewChange]
+  );
   const [previewUser, setPreviewUser] = useState(null);
   const sorted = useMemo(() => {
     return [...users].sort((a, b) => {
@@ -376,7 +389,7 @@ export function UserCardsPage({
       <div
         className={[
           "mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-4",
-          compactView ? "md:gap-3" : "",
+          compactView ? "md:gap-1" : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -387,7 +400,7 @@ export function UserCardsPage({
             id={`card-item-${u.id}`}
             className={[
               "flex flex-col items-center gap-2",
-              compactView ? "md:w-[220px] md:min-w-[200px] md:gap-1 md:h-[330px]" : "w-[360px] min-w-[342px]",
+              compactView ? "md:w-[200px] md:min-w-[180px] md:gap-1 md:h-[295px]" : "w-[360px] min-w-[342px]",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -397,7 +410,7 @@ export function UserCardsPage({
                 if (!compactView) return;
                 setPreviewUser(u);
               }}
-              className={`relative ${compactView ? "md:scale-[0.62] md:origin-top md:-my-12 md:translate-y-[52px] md:cursor-zoom-in" : ""} ${
+              className={`relative ${compactView ? "md:scale-[0.55] md:origin-top md:-my-14 md:translate-y-[58px] md:cursor-zoom-in" : ""} ${
                 highlightId === String(u.id)
                   ? "rounded-[22px] drop-shadow-[0_22px_70px_rgba(14,165,233,0.6)] drop-shadow-[0_0_130px_rgba(14,165,233,0.5)]"
                   : ""

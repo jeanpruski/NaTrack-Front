@@ -29,20 +29,34 @@ const parseRangeParam = (value) => {
   return null;
 };
 
+const parseBoolParam = (value) => {
+  if (!value) return null;
+  const cleaned = String(value).toLowerCase();
+  if (["1", "true", "yes", "compact"].includes(cleaned)) return true;
+  if (["0", "false", "no"].includes(cleaned)) return false;
+  return null;
+};
+
 const readFilterParams = () => {
   if (typeof window === "undefined") return { mode: null, range: null };
   const params = new URLSearchParams(window.location.search);
   return {
     mode: parseModeParam(params.get("mode")),
     range: parseRangeParam(params.get("range")),
+    compact: parseBoolParam(params.get("compact")),
+    dashRecent: parseBoolParam(params.get("recent")),
+    dashPodium: parseBoolParam(params.get("podium")),
+    dashBots: parseBoolParam(params.get("bots")),
+    dashCards: parseBoolParam(params.get("cards")),
   };
 };
 
-const buildSearchParams = ({ withCard, modeValue, rangeValue }) => {
+const buildSearchParams = ({ withCard, modeValue, rangeValue, compactValue }) => {
   const params = new URLSearchParams();
   if (withCard) params.set("card", "open");
   if (modeValue) params.set("mode", modeValue);
   if (rangeValue) params.set("range", rangeValue);
+  if (compactValue) params.set("compact", "1");
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 };
@@ -50,8 +64,8 @@ const buildSearchParams = ({ withCard, modeValue, rangeValue }) => {
 const buildUserPath = (slug, withCard = false, modeValue = null, rangeValue = null) =>
   `/user/${encodeURIComponent(slug)}${buildSearchParams({ withCard, modeValue, rangeValue })}`;
 
-const buildCardsPath = (modeValue = null, rangeValue = null) =>
-  `/cards${buildSearchParams({ withCard: false, modeValue, rangeValue })}`;
+const buildCardsPath = (modeValue = null, rangeValue = null, compactValue = false) =>
+  `/cards${buildSearchParams({ withCard: false, modeValue, rangeValue, compactValue })}`;
 
 const buildNewsPath = () => "/events";
 
@@ -62,6 +76,7 @@ export {
   buildUserPath,
   parseModeParam,
   parseRangeParam,
+  parseBoolParam,
   readCardParam,
   readFilterParams,
   readRouteState,

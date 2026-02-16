@@ -38,6 +38,14 @@ export function GlobalDashboard({
   onCancelChallenge,
   isAdmin,
   isAuth,
+  showMoreRecent = false,
+  onToggleShowMoreRecent,
+  showMorePodium = false,
+  onToggleShowMorePodium,
+  showBotsInPodium = false,
+  onToggleShowBotsInPodium,
+  showMoreCards = false,
+  onToggleShowMoreCards,
   notifications = [],
   notificationsLoading = false,
   notificationsError = "",
@@ -55,10 +63,10 @@ export function GlobalDashboard({
   const [newsImageReadyMap, setNewsImageReadyMap] = useState({});
   const [showNotifInfo, setShowNotifInfo] = useState(false);
   const [showCardPreview, setShowCardPreview] = useState(false);
-  const [showBotsInPodium, setShowBotsInPodium] = useState(false);
-  const [showMoreRecent, setShowMoreRecent] = useState(false);
-  const [showMorePodium, setShowMorePodium] = useState(false);
-  const [showMoreCards, setShowMoreCards] = useState(false);
+  const toggleShowMoreRecent = () => onToggleShowMoreRecent?.(!showMoreRecent);
+  const toggleShowMorePodium = () => onToggleShowMorePodium?.(!showMorePodium);
+  const toggleShowBotsInPodium = () => onToggleShowBotsInPodium?.(!showBotsInPodium);
+  const toggleShowMoreCards = () => onToggleShowMoreCards?.(!showMoreCards);
   const [notifAnchorRect] = useState(null);
   const [adminNotifOverride, setAdminNotifOverride] = useState(null);
   const sessionLikesSet = useMemo(() => {
@@ -639,7 +647,7 @@ export function GlobalDashboard({
           recentActivities={recentActivities}
           recentActivitiesShown={recentActivitiesShown}
           showMoreRecent={showMoreRecent}
-          onToggleShowMore={() => setShowMoreRecent((v) => !v)}
+          onToggleShowMore={toggleShowMoreRecent}
           userById={userById}
           currentUserId={currentUserId}
           isAuth={isAuth}
@@ -653,9 +661,9 @@ export function GlobalDashboard({
           subtitle={subtitle}
           hasBotsInRanking={hasBotsInRanking}
           showBotsInPodium={showBotsInPodium}
-          onToggleBots={() => setShowBotsInPodium((prev) => !prev)}
+          onToggleBots={toggleShowBotsInPodium}
           showMorePodium={showMorePodium}
-          onToggleMore={() => setShowMorePodium((prev) => !prev)}
+          onToggleMore={toggleShowMorePodium}
           podiumShown={podiumShown}
           sparklineMap={sparklineMap}
           onSelectUser={onSelectUser}
@@ -665,7 +673,7 @@ export function GlobalDashboard({
           cardCountsByUser={cardCountsByUser}
           cardCountsShown={cardCountsShown}
           showMoreCards={showMoreCards}
-          onToggleMore={() => setShowMoreCards((v) => !v)}
+          onToggleMore={toggleShowMoreCards}
           currentUserId={currentUserId}
           onSelectUser={onSelectUser}
         />

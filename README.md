@@ -1,5 +1,5 @@
 # NaTrack — Suivi Natation & Running
-**Version : Alpha 0.0.14**
+**Version : Alpha 0.0.15**
 
 NaTrack est une application web de suivi sportif (natation + running) avec dashboards, historiques, cartes bots (défi/rare/événement), et intégration Strava (import automatique du dernier run).
 

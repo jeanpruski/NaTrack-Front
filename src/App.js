@@ -89,7 +89,13 @@ export default function App() {
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [showCardsPage, setShowCardsPage] = useState(false);
   const [cardsFilter, setCardsFilter] = useState("mixte");
+  const initialFiltersRef = useRef(readFilterParams());
+  const [cardsCompact, setCardsCompact] = useState(() => !!initialFiltersRef.current.compact);
   const [showAllCardsFront, setShowAllCardsFront] = useState(false);
+  const [showMoreRecent, setShowMoreRecent] = useState(() => !!initialFiltersRef.current.dashRecent);
+  const [showMorePodium, setShowMorePodium] = useState(() => !!initialFiltersRef.current.dashPodium);
+  const [showBotsInPodium, setShowBotsInPodium] = useState(() => !!initialFiltersRef.current.dashBots);
+  const [showMoreCards, setShowMoreCards] = useState(() => !!initialFiltersRef.current.dashCards);
   const [hideLockedCards, setHideLockedCards] = useState(false);
   const [scrollToCardId, setScrollToCardId] = useState(null);
   const [toast, setToast] = useState("");
@@ -104,7 +110,6 @@ export default function App() {
   const prevUserIdRef = useRef(user?.id || null);
   const authTransitionRef = useRef(isAuth);
   const authTransitionTimerRef = useRef(null);
-  const initialFiltersRef = useRef(readFilterParams());
   const loginRedirectRef = useRef(isAuth);
   const rangeTouchedRef = useRef(false);
   const filtersTouchedRef = useRef(false);
@@ -352,12 +357,29 @@ export default function App() {
       const next = readRouteState();
       setRouteState(next);
       setUserCardOpen(readCardParam());
-      const { mode: nextMode, range: nextRange } = readFilterParams();
+      const {
+        mode: nextMode,
+        range: nextRange,
+        compact: nextCompact,
+        dashRecent: nextDashRecent,
+        dashPodium: nextDashPodium,
+        dashBots: nextDashBots,
+        dashCards: nextDashCards,
+      } = readFilterParams();
       if (nextMode && nextMode !== mode) setMode(nextMode);
       if (nextRange && nextRange !== range) {
         rangeTouchedRef.current = true;
         setRange(nextRange);
       }
+      if (nextCompact !== null) {
+        if (nextCompact !== cardsCompact) setCardsCompact(nextCompact);
+      } else if (cardsCompact) {
+        setCardsCompact(false);
+      }
+      if (nextDashRecent !== null) setShowMoreRecent(nextDashRecent);
+      if (nextDashPodium !== null) setShowMorePodium(nextDashPodium);
+      if (nextDashBots !== null) setShowBotsInPodium(nextDashBots);
+      if (nextDashCards !== null) setShowMoreCards(nextDashCards);
       if (scrollTopSoonRef.current) scrollTopSoonRef.current();
       if (next.type === "root") {
         setShowCardsPage(false);
@@ -375,7 +397,7 @@ export default function App() {
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [isAuth, mode, range]);
+  }, [isAuth, mode, range, cardsCompact]);
 
   useEffect(() => {
     if (!isAuth) {
@@ -463,6 +485,23 @@ export default function App() {
     if (!showCardsPage) return;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [showCardsPage, cardsFilter]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (showNewsArchive || showCardsPage || selectedUser || routeState.type !== "root") return;
+    const params = new URLSearchParams(window.location.search);
+    if (showMoreRecent) params.set("recent", "1");
+    else params.delete("recent");
+    if (showMorePodium) params.set("podium", "1");
+    else params.delete("podium");
+    if (showBotsInPodium) params.set("bots", "1");
+    else params.delete("bots");
+    if (showMoreCards) params.set("cards", "1");
+    else params.delete("cards");
+    const search = params.toString();
+    const path = window.location.pathname || "/";
+    window.history.replaceState({}, "", search ? `${path}?${search}` : path);
+  }, [showMoreRecent, showMorePodium, showBotsInPodium, showMoreCards, showNewsArchive, showCardsPage, selectedUser, routeState.type]);
 
   useEffect(() => {
     if (!selectedUser) return;
@@ -874,7 +913,7 @@ export default function App() {
         setShowCardsPage(false);
         return;
       }
-      const path = buildCardsPath(mode, range);
+      const path = buildCardsPath(mode, range, cardsCompact);
       const current = `${window.location.pathname || "/"}${window.location.search || ""}`;
       if (current !== path) {
         window.history.pushState({}, "", path);
@@ -901,7 +940,7 @@ export default function App() {
       window.history.pushState({}, "", "/");
       setRouteState({ type: "root", slug: null });
     }
-  }, [showCardsPage, showNewsArchive, selectedUser, isAuth, userCardOpen, routeState.type, usersForRouting.length, mode, range]);
+  }, [showCardsPage, showNewsArchive, selectedUser, isAuth, userCardOpen, routeState.type, usersForRouting.length, mode, range, cardsCompact]);
 
   const userRankInfo = useMemo(() => {
     if (!selectedUserInfo || !users.length) return null;
@@ -1618,7 +1657,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.14{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.15{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
@@ -1823,6 +1862,8 @@ export default function App() {
                   nfDecimal={nfDecimal}
                   userRunningAvgById={userRunningAvgById}
                   filter={cardsFilter}
+                  compactView={cardsCompact}
+                  onCompactViewChange={setCardsCompact}
                   isAdmin={isAdmin}
                   currentUserId={user?.id || null}
                   showAllCardsFront={showAllCardsFront}
@@ -1872,6 +1913,14 @@ export default function App() {
                   onCancelChallenge={cancelChallenge}
                   isAdmin={isAdmin}
                   isAuth={isAuth}
+                  showMoreRecent={showMoreRecent}
+                  onToggleShowMoreRecent={setShowMoreRecent}
+                  showMorePodium={showMorePodium}
+                  onToggleShowMorePodium={setShowMorePodium}
+                  showBotsInPodium={showBotsInPodium}
+                  onToggleShowBotsInPodium={setShowBotsInPodium}
+                  showMoreCards={showMoreCards}
+                  onToggleShowMoreCards={setShowMoreCards}
                   notifications={notifications}
                   notificationsLoading={notificationsLoading}
                   notificationsError={notificationsError}
