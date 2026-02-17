@@ -160,6 +160,25 @@ export function GlobalDashboard({
           : userIsBotById.get(String(s?.user_id)) || false;
       return !isBot;
     });
+    const byDateUserMax = new Map();
+    (sessions || []).forEach((s) => {
+      const isBot =
+        s?.is_bot !== undefined
+          ? Boolean(s.is_bot)
+          : userIsBotById.get(String(s?.user_id)) || false;
+      if (isBot) return;
+      if (String(s?.type || "").toLowerCase() !== "run") return;
+      if (!s?.user_id || !s?.date) return;
+      const base = toParis(s.date)?.startOf("day");
+      if (!base || !base.isValid()) return;
+      const dateKey = base.format("YYYY-MM-DD");
+      const dist = Number(s.distance) || 0;
+      if (dist <= 0) return;
+      if (!byDateUserMax.has(dateKey)) byDateUserMax.set(dateKey, new Map());
+      const map = byDateUserMax.get(dateKey);
+      const prev = map.get(s.user_id) || 0;
+      if (dist > prev) map.set(s.user_id, dist);
+    });
     list.sort((a, b) => {
       const aRaw = a?.date || null;
       const bRaw = b?.date || null;
@@ -184,6 +203,34 @@ export function GlobalDashboard({
         (Number.isFinite(Number(challenge?.target_km)) ? Number(challenge.target_km) * 1000 : null);
       const targetMeters = Number.isFinite(Number(targetMetersRaw)) ? Number(targetMetersRaw) : null;
       const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
+      const dateKey = s?.date ? toParis(s.date)?.startOf("day")?.format("YYYY-MM-DD") : null;
+      let compareBeaten = null;
+      if (
+        currentUserId &&
+        s?.user_id &&
+        String(s.user_id) === String(currentUserId) &&
+        String(s?.type || "").toLowerCase() === "run" &&
+        Number.isFinite(Number(s?.distance))
+      ) {
+        const map = dateKey ? byDateUserMax.get(dateKey) : null;
+        if (map) {
+          const beaten = [];
+          map.forEach((otherDist, otherUserId) => {
+            if (String(otherUserId) === String(currentUserId)) return;
+            if (Number(s.distance) >= Number(otherDist)) {
+              const name = userNameById.get(String(otherUserId)) || "Utilisateur";
+              beaten.push({ name, dist: Number(otherDist) || 0 });
+            }
+          });
+          if (beaten.length) {
+            beaten.sort((a, b) => b.dist - a.dist);
+            compareBeaten = beaten.map((b) => ({
+              name: b.name,
+              kmLabel: `${formatKmFixed(b.dist / 1000)} km`,
+            }));
+          }
+        }
+      }
       const dateLabel = buildDateLabel(s?.date || null, s?.created_at || null);
       return {
         id: s?.id ?? `${userName}-${s?.date || ""}-${s?.distance || ""}`,
@@ -201,9 +248,10 @@ export function GlobalDashboard({
         kmLabel: distanceKm !== null ? `${formatKmFixed(distanceKm)} km` : "—",
         targetLabel: challengeCompleted && targetMeters !== null ? `${formatKmFixed(targetMeters / 1000)} km` : "—",
         likesCount: Number(s?.likes_count) || 0,
+        compareBeaten,
       };
     });
-  }, [sessions, userIsBotById, userNameById]);
+  }, [sessions, userIsBotById, userNameById, currentUserId]);
   const recentActivitiesShown = useMemo(() => {
     return recentActivities.slice(0, showMoreRecent ? 20 : 3);
   }, [recentActivities, showMoreRecent]);

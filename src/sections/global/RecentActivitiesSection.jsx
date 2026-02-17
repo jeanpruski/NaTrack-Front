@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, Medal, Newspaper, Sparkles, Swords } from "lucide-react";
+import { Heart, Medal, Newspaper, Sparkles, Swords, User } from "lucide-react";
 import { Reveal } from "../../components/Reveal";
 
 export function RecentActivitiesSection({
@@ -57,16 +57,28 @@ export function RecentActivitiesSection({
                     <span className="text-right">Objectif</span>
                   </div>
                   <div className="mt-2 grid gap-2">
-                    {recentActivitiesShown.map((row) => {
-                      const targetUser = row.userId ? userById.get(String(row.userId)) : null;
-                      const isMine = currentUserId && row.userId && String(row.userId) === String(currentUserId);
-                      const canLike = !!(isAuth && !isMine && row.sessionId);
-                      const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
-                      const isPending = canLike && pendingSet.has(String(row.sessionId));
+    {recentActivitiesShown.map((row) => {
+      const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+      const isMine = currentUserId && row.userId && String(row.userId) === String(currentUserId);
+      const canLike = !!(isAuth && !isMine && row.sessionId);
+      const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
+      const isPending = canLike && pendingSet.has(String(row.sessionId));
+      const beatenTextClass =
+        row.challengeType === "defi"
+          ? "text-rose-600 dark:text-rose-300"
+          : row.challengeType === "rare"
+            ? "text-sky-600 dark:text-sky-300"
+            : row.challengeType === "evenement"
+              ? "text-amber-500 dark:text-amber-300"
+              : "text-emerald-600 dark:text-emerald-300";
                       const handleOpen = () => {
                         if (!targetUser) return;
                         onSelectUser?.(targetUser);
                       };
+                      const shouldCenter = !(isMine && row.compareBeaten?.length);
+                      const beatenNameClass = "text-slate-700 dark:text-slate-200";
+                      const beatenIconClass = "text-emerald-500 dark:text-emerald-400";
+                      const beatenDistClass = "text-emerald-500/70 dark:text-emerald-300/70";
                       return (
                         <div
                           key={row.id}
@@ -80,7 +92,7 @@ export function RecentActivitiesSection({
                               handleOpen();
                             }
                           }}
-                          className={`grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
+                          className={`grid grid-cols-[80px_1.2fr_1.2fr_0.7fr_0.7fr] ${shouldCenter ? "items-center" : "items-start"} gap-3 rounded-xl border px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-200 ${
                             targetUser
                               ? isMine
                                 ? "cursor-pointer border-emerald-200/70 bg-emerald-50/70 hover:border-emerald-300/70 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:border-emerald-400/60 dark:hover:bg-emerald-900/30"
@@ -131,20 +143,43 @@ export function RecentActivitiesSection({
                               ({row.dateLabel})
                             </span>
                           </span>
-                          <span className="flex items-center gap-2 truncate">
-                            {row.challengeType === "defi" ? (
-                              <Swords size={14} className="text-rose-600 dark:text-rose-300" />
-                            ) : row.challengeType === "rare" ? (
-                              <Sparkles size={14} className="text-sky-600 dark:text-sky-300" />
-                            ) : row.challengeType === "evenement" ? (
-                              <Newspaper size={14} className="text-amber-500 dark:text-amber-300" />
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <span className="flex items-center gap-2 truncate">
+                              {row.challengeType === "defi" ? (
+                                <Swords size={14} className="text-rose-600 dark:text-rose-300" />
+                              ) : row.challengeType === "rare" ? (
+                                <Sparkles size={14} className="text-sky-600 dark:text-sky-300" />
+                              ) : row.challengeType === "evenement" ? (
+                                <Newspaper size={14} className="text-amber-500 dark:text-amber-300" />
+                              ) : null}
+                              <span className="truncate">{row.challengeLabel}</span>
+                            </span>
+                            {isMine && row.compareBeaten?.length ? (
+                              <div className="flex flex-col gap-1 text-[14px]">
+                                {row.compareBeaten.map((p) => (
+                                  <span key={`${row.id}-beat-${p.name}`} className={`truncate inline-flex items-center gap-2 ${beatenNameClass}`}>
+                                    <User size={14} className={beatenIconClass} aria-hidden="true" />
+                                    {p.name}
+                                  </span>
+                                ))}
+                              </div>
                             ) : null}
-                            <span className="truncate">{row.challengeLabel}</span>
-                          </span>
+                          </div>
                           <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
                             {row.kmLabel}
                           </span>
-                          <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
+                          {isMine && row.compareBeaten?.length ? (
+                            <div className="text-right text-slate-500 dark:text-slate-400">
+                              <div>{row.targetLabel}</div>
+                              <div className={`mt-1 flex flex-col gap-1 text-[14px] ${beatenDistClass}`}>
+                                {row.compareBeaten.map((p) => (
+                                  <span key={`${row.id}-dist-${p.name}`}>{p.kmLabel}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-right text-slate-500 dark:text-slate-400">{row.targetLabel}</span>
+                          )}
                         </div>
                       );
                     })}
@@ -158,6 +193,9 @@ export function RecentActivitiesSection({
                   const canLike = !!(isAuth && !isMine && row.sessionId);
                   const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
                   const isPending = canLike && pendingSet.has(String(row.sessionId));
+                  const beatenNameClass = "text-slate-700 dark:text-slate-200";
+                  const beatenIconClass = "text-emerald-500 dark:text-emerald-400";
+                  const beatenDistClass = "text-emerald-500/70 dark:text-emerald-300/70";
                   const handleOpen = () => {
                     if (!targetUser) return;
                     onSelectUser?.(targetUser);
@@ -238,6 +276,19 @@ export function RecentActivitiesSection({
                         </div>
                       </div>
                       <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">Objectif: {row.targetLabel}</div>
+                      {isMine && row.compareBeaten?.length ? (
+                        <div className={`mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs ${beatenDistClass}`}>
+                          {row.compareBeaten.map((p) => (
+                            <span
+                              key={`${row.id}-beat-mobile-${p.name}`}
+                              className={`inline-flex items-center gap-1 ${beatenNameClass}`}
+                            >
+                              <User size={12} className={beatenIconClass} aria-hidden="true" />
+                              {p.name} ({p.kmLabel})
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
