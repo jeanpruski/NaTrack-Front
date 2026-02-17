@@ -2,7 +2,7 @@ import React, { useMemo, useCallback, useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
-import { Trophy } from "lucide-react";
+import { Newspaper, Sparkles, Swords, Trophy, User } from "lucide-react";
 import { UserHoloCard } from "../components/UserHoloCard";
 import { InfoPopover } from "../components/InfoPopover";
 import { apiGet, apiJson } from "../utils/api";
@@ -17,6 +17,8 @@ export function UserCardsPage({
   onOpenResults,
   filter = "mixte",
   userRunningAvgById,
+  userRunningMaxById,
+  cardsUnlockedCounts,
   isAdmin = false,
   currentUserId = null,
   showAllCardsFront = false,
@@ -411,7 +413,7 @@ export function UserCardsPage({
     <div className="px-4 xl:px-8 pt-4 pb-8">
       {previewUser && typeof document !== "undefined"
         ? createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-40 flex items-center justify-center px-4">
             <div
               className="absolute inset-0 bg-black/80"
               onClick={() => setPreviewUser(null)}
@@ -427,6 +429,7 @@ export function UserCardsPage({
                 showBotAverage
                 minSpinnerMs={500}
                 userRunningAvgKm={!previewUser?.is_bot ? userRunningAvgById?.get(previewUser.id) : null}
+                userRunningMaxKm={!previewUser?.is_bot ? userRunningMaxById?.get(previewUser.id) : null}
                 showBackOnly={isLockedBot(previewUser) || isLockedUser(previewUser)}
                 autoTiltVariant="soft"
                 userRankInfo={{
@@ -435,6 +438,43 @@ export function UserCardsPage({
                 }}
                 elevated
               />
+              {!(isLockedBot(previewUser) || isLockedUser(previewUser)) && (
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  {!!previewUser?.is_bot && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResultsUser(previewUser);
+                        setShowResultsInfo(true);
+                        onOpenResults?.(previewUser);
+                      }}
+                      className="rounded-full border border-emerald-300/70 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:bg-slate-900/80 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                    >
+                      Résultats
+                    </button>
+                  )}
+                  {!previewUser?.is_bot && String(previewUser.id) !== String(currentUserId) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResultsUser(previewUser);
+                        setShowResultsInfo(true);
+                        onOpenResults?.(previewUser);
+                      }}
+                      className="rounded-full border border-emerald-300/70 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:bg-slate-900/80 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                    >
+                      Résultats
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onSelectUser?.(previewUser)}
+                    className="rounded-full border border-emerald-300/70 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:bg-slate-900/80 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
+                  >
+                    Ouvrir le dashboard de {previewUser?.name || "l'utilisateur"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>,
           document.body
@@ -523,8 +563,38 @@ export function UserCardsPage({
         offsetY={-15}
         offsetYMobile={0}
       />
-      {isAdmin && (
-        <div className="mb-3 hidden md:flex justify-end">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        {cardsUnlockedCounts && (
+          <div
+            className="xl:hidden inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow dark:bg-slate-700/70 dark:text-slate-100"
+            aria-label="Nombre de cartes débloquées"
+          >
+            <span>
+              {cardsUnlockedCounts.user || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.userTotal || 0} </span>
+            </span>
+            <User size={14} aria-hidden="true" />
+            <span className="opacity-60">·</span>
+            <span>
+              {cardsUnlockedCounts.defi || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.defiTotal || 0} </span>
+            </span>
+            <Swords size={14} aria-hidden="true" />
+            <span className="opacity-60">·</span>
+            <span>
+              {cardsUnlockedCounts.rare || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.rareTotal || 0} </span>
+            </span>
+            <Sparkles size={14} aria-hidden="true" />
+            <span className="opacity-60">·</span>
+            <span>
+              {cardsUnlockedCounts.evenement || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.evenementTotal || 0} </span>
+            </span>
+            <Newspaper size={14} aria-hidden="true" />
+          </div>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
           <button
             type="button"
             onClick={() => setCompactView((v) => !v)}
@@ -533,11 +603,11 @@ export function UserCardsPage({
             {compactView ? "Vue normale" : "Vue compacte"}
           </button>
         </div>
-      )}
+      </div>
       <div
         className={[
-          "mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-4",
-          compactView ? "md:gap-1" : "",
+          "mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-0",
+          compactView ? "md:gap-1" : "md:gap-2",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -548,7 +618,9 @@ export function UserCardsPage({
             id={`card-item-${u.id}`}
             className={[
               "flex flex-col items-center gap-2",
-              compactView ? "md:w-[200px] md:min-w-[180px] md:gap-1 md:h-[295px]" : "w-[360px] min-w-[342px]",
+              compactView
+                ? "w-[124px] min-w-[114px] gap-0 h-[175px] md:w-[200px] md:min-w-[180px] md:gap-2 md:h-[295px]"
+                : "w-[360px] min-w-[342px]",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -558,7 +630,11 @@ export function UserCardsPage({
                 if (!compactView) return;
                 setPreviewUser(u);
               }}
-              className={`relative ${compactView ? "md:scale-[0.55] md:origin-top md:-my-14 md:translate-y-[58px] md:cursor-zoom-in" : ""} ${
+              className={`relative ${
+                compactView
+                  ? "scale-[0.32] origin-top translate-y-[2px] cursor-zoom-in md:scale-[0.55] md:origin-top md:-my-14 md:translate-y-[58px]"
+                  : ""
+              } ${
                 highlightId === String(u.id)
                   ? "rounded-[22px] drop-shadow-[0_22px_70px_rgba(14,165,233,0.6)] drop-shadow-[0_0_130px_rgba(14,165,233,0.5)]"
                   : ""
@@ -578,6 +654,7 @@ export function UserCardsPage({
                 showBotAverage
                 minSpinnerMs={500}
                 userRunningAvgKm={!u?.is_bot ? userRunningAvgById?.get(u.id) : null}
+                userRunningMaxKm={!u?.is_bot ? userRunningMaxById?.get(u.id) : null}
                 showBackOnly={isLockedBot(u) || isLockedUser(u)}
                 disableTilt={compactView}
                 compact={compactView}

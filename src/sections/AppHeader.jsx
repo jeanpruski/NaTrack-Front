@@ -349,17 +349,33 @@ export function AppHeader({
             className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow dark:bg-slate-700/70 dark:text-slate-100"
             aria-label="Nombre de cartes débloquées"
           >
-            {cardsUnlockedCounts.defi || 0}/{cardsUnlockedCounts.defiTotal || 0}{" "}
+            <span>
+              {cardsUnlockedCounts.user || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.userTotal || 0} </span>
+            </span>
+            <User size={14} aria-hidden="true" />
+            <span className="opacity-60">·</span>
+            <span>
+              {cardsUnlockedCounts.defi || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.defiTotal || 0} </span>
+            </span>
             <Swords size={14} aria-hidden="true" />
             <span className="opacity-60">·</span>
-            {cardsUnlockedCounts.rare || 0}/{cardsUnlockedCounts.rareTotal || 0}{" "}
+            <span>
+              {cardsUnlockedCounts.rare || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.rareTotal || 0} </span>
+            </span>
             <Sparkles size={14} aria-hidden="true" />
             <span className="opacity-60">·</span>
-            {cardsUnlockedCounts.evenement || 0}/{cardsUnlockedCounts.evenementTotal || 0}{" "}
+            <span>
+              {cardsUnlockedCounts.evenement || 0}
+              <span className="opacity-70 font-normal">/{cardsUnlockedCounts.evenementTotal || 0} </span>
+            </span>
             <Newspaper size={14} aria-hidden="true" />
           </div>
         </div>
       )}
+
 
       {newsFilter && (
         <div className="flex items-center justify-end gap-2 xl:hidden w-full">
@@ -397,23 +413,7 @@ export function AppHeader({
 
       {!showFilters && (cardsFilter || cardsUnlockedCounts) && (
         <div className="flex items-center justify-between gap-2 xl:hidden w-full">
-          {cardsUnlockedCounts ? (
-            <div
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow dark:bg-slate-700/70 dark:text-slate-100"
-              aria-label="Nombre de cartes débloquées"
-            >
-              <span className="text-[12px]">{cardsUnlockedCounts.defi || 0}<span className='opacity-70'>/{cardsUnlockedCounts.defiTotal || 0}{" "}</span></span>
-              <Swords size={12} aria-hidden="true" />
-              <span className="opacity-60">·</span>
-              <span className="text-[12px]">{cardsUnlockedCounts.rare || 0}<span className='opacity-70'>/{cardsUnlockedCounts.rareTotal || 0}{" "}</span></span>
-              <Sparkles size={12} aria-hidden="true" />
-              <span className="opacity-60">·</span>
-              <span className="text-[12px]">{cardsUnlockedCounts.evenement || 0}<span className='opacity-70'>/{cardsUnlockedCounts.evenementTotal || 0}{" "}</span></span>
-              <Newspaper size={12} aria-hidden="true" />
-            </div>
-          ) : (
-            <span />
-          )}
+          <span />
           <div className="flex items-center gap-2">
             {cardsHideLockedAction && (
               <button
@@ -429,6 +429,7 @@ export function AppHeader({
           </div>
         </div>
       )}
+
 
       {!showFilters && cardsFilter && (
         <div className="hidden xl:flex items-center justify-end gap-3">

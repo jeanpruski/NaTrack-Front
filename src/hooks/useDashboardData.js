@@ -6,6 +6,7 @@ export function useDashboardData({
   userName,
   userInfo,
   userRunningAvgById,
+  userRunningMaxById,
   range,
   activeSeasonNumber,
   activeChallenge,
@@ -19,6 +20,7 @@ export function useDashboardData({
   const displayName = userName || userInfo?.name || "";
   const cardUser = userInfo || (userName ? { name: userName } : {});
   const userRunningAvgKm = userInfo ? userRunningAvgById?.get(userInfo.id) : null;
+  const userRunningMaxKm = userInfo ? userRunningMaxById?.get(userInfo.id) : null;
   const isBotUser = Boolean(userInfo?.is_bot);
   const botCardType = userInfo?.bot_card_type || "";
   const isSeasonRange = String(range || "").startsWith("season:");
@@ -171,6 +173,7 @@ export function useDashboardData({
     displayName,
     cardUser,
     userRunningAvgKm,
+    userRunningMaxKm,
     isBotUser,
     botCardType,
     isSeasonRange,

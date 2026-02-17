@@ -51,6 +51,7 @@ export function Dashboard({
   notifications = [],
   userRankInfo,
   userRunningAvgById,
+  userRunningMaxById,
   userCardOpen,
   onUserCardOpenChange,
   currentUserId,
@@ -58,6 +59,7 @@ export function Dashboard({
   activeChallenge,
   activeChallengeDueAt,
   isAdmin = false,
+  isAuth = false,
   isBusy = false,
   canEditSelected = false,
   adminSessions = [],
@@ -91,6 +93,7 @@ export function Dashboard({
     displayName,
     cardUser,
     userRunningAvgKm,
+    userRunningMaxKm,
     isBotUser,
     botCardType,
     isSeasonRange,
@@ -109,6 +112,7 @@ export function Dashboard({
     userName,
     userInfo,
     userRunningAvgById,
+    userRunningMaxById,
     range,
     activeSeasonNumber,
     activeChallenge,
@@ -440,6 +444,10 @@ export function Dashboard({
           nfDecimal={nfDecimal}
           userRankInfo={userRankInfo}
           userRunningAvgKm={userRunningAvgKm}
+          userRunningMaxKm={userRunningMaxKm}
+          isAuth={isAuth}
+          authToken={authToken}
+          currentUserId={currentUserId}
         />
         <ChallengeCardModal
           open={showChallengeCard}
@@ -525,6 +533,10 @@ export function Dashboard({
         nfDecimal={nfDecimal}
         userRankInfo={userRankInfo}
         userRunningAvgKm={userRunningAvgKm}
+        userRunningMaxKm={userRunningMaxKm}
+        isAuth={isAuth}
+        authToken={authToken}
+        currentUserId={currentUserId}
       />
       <ChallengeCardModal
         open={showChallengeCard}

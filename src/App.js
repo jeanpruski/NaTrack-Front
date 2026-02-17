@@ -820,6 +820,24 @@ export default function App() {
     return avg;
   }, [sessions]);
 
+  const userRunningMaxById = useMemo(() => {
+    const cutoff = dayjs().subtract(3, "month").startOf("day").valueOf();
+    const maxById = new Map();
+    sessions.forEach((s) => {
+      if (!s?.user_id) return;
+      if (String(s.type || "").toLowerCase() !== "run") return;
+      if (dayjs(s.date).valueOf() < cutoff) return;
+      const dist = Number(s.distance) || 0;
+      const prev = maxById.get(s.user_id) || 0;
+      if (dist > prev) maxById.set(s.user_id, dist);
+    });
+    const maxKm = new Map();
+    maxById.forEach((dist, userId) => {
+      if (dist > 0) maxKm.set(userId, dist / 1000);
+    });
+    return maxKm;
+  }, [sessions]);
+
   const selectedUserInfo = useMemo(() => {
     if (!selectedUser) return null;
     return users.find((u) => u.id === selectedUser.id) || selectedUser;
@@ -1404,15 +1422,27 @@ export default function App() {
     }
   }, [isGlobalView, showCardsPage, showNewsArchive]);
   const cardsUnlockedCounts = useMemo(() => {
-    const counts = { defi: 0, rare: 0, evenement: 0 };
-    const totals = { defi: 0, rare: 0, evenement: 0 };
+    const counts = { user: 0, defi: 0, rare: 0, evenement: 0 };
+    const totals = { user: 0, defi: 0, rare: 0, evenement: 0 };
     (users || []).forEach((u) => {
-      if (!u?.is_bot) return;
+      if (!u?.is_bot) {
+        totals.user += 1;
+        return;
+      }
       const type = String(u?.bot_card_type || "").toLowerCase();
       if (type === "defi" || type === "rare" || type === "evenement") {
         totals[type] += 1;
       }
     });
+    const seenUsers = new Set();
+    if (user?.id !== undefined && user?.id !== null) {
+      seenUsers.add(String(user.id));
+    }
+    (userCardResults || []).forEach((r) => {
+      if (!r?.target_user_id) return;
+      seenUsers.add(String(r.target_user_id));
+    });
+    counts.user = seenUsers.size;
     const seen = { defi: new Set(), rare: new Set(), evenement: new Set() };
     (cardResults || []).forEach((r) => {
       const type = String(r?.type || "").toLowerCase();
@@ -1427,11 +1457,12 @@ export default function App() {
     });
     return {
       ...counts,
+      userTotal: totals.user,
       defiTotal: totals.defi,
       rareTotal: totals.rare,
       evenementTotal: totals.evenement,
     };
-  }, [cardResults, users]);
+  }, [cardResults, users, userCardResults, user?.id]);
 
   useEffect(() => {
     if (!isAuth || checking || !authToken) return;
@@ -1662,7 +1693,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.15{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.17{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
@@ -1868,6 +1899,8 @@ export default function App() {
                   activeSeasonInfo={activeSeasonInfo}
                   nfDecimal={nfDecimal}
                   userRunningAvgById={userRunningAvgById}
+                  userRunningMaxById={userRunningMaxById}
+                  cardsUnlockedCounts={cardsUnlockedCounts}
                   filter={cardsFilter}
                   compactView={cardsCompact}
                   onCompactViewChange={setCardsCompact}
@@ -1957,10 +1990,12 @@ export default function App() {
                   seasonEndDate={seasonCalendarEndDate}
                   userRankInfo={userRankInfo}
                   userRunningAvgById={userRunningAvgById}
+                  userRunningMaxById={userRunningMaxById}
                   userCardOpen={userCardOpen}
                   onUserCardOpenChange={setUserCardOpen}
                   currentUserId={user?.id || null}
                   isAdmin={isAdmin}
+                  isAuth={isAuth}
                   isBusy={isBusy}
                   canEditSelected={canEditSelected}
                   adminSessions={canEditSelected ? userSessions : sessions.filter((s) => s.user_id === user?.id)}

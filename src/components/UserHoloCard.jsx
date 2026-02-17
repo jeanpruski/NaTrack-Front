@@ -9,6 +9,7 @@ export function UserHoloCard({
   elevated = false,
   showBotAverage = false,
   userRunningAvgKm,
+  userRunningMaxKm,
   minSpinnerMs = 0,
   showBackOnly = false,
   autoTiltOnMobile = true,
@@ -24,6 +25,8 @@ export function UserHoloCard({
   const userShoeTarget = user?.shoe_target_km;
   const userCardImage = user?.card_image || "";
   const userDescription = user?.description || "";
+  const createdAt = user?.created_at || user?.card_created_at || "";
+  const cardYear = dayjs(createdAt).isValid() ? dayjs(createdAt).format("YYYY") : dayjs().format("YYYY");
   const botAvgDistance = user?.avg_distance_m;
   const isBot = Boolean(user?.is_bot);
   const botCardType = user?.bot_card_type || "";
@@ -37,9 +40,11 @@ export function UserHoloCard({
   const showEventDate = isBot && botCardType === "evenement" && Boolean(botEventDate);
   const showBotAverageValue = showBotAverage && isBot && Number.isFinite(Number(botAvgDistance)) && Number(botAvgDistance) > 0;
   const showUserAverageValue = !isBot && Number.isFinite(Number(userRunningAvgKm)) && Number(userRunningAvgKm) > 0;
+  const showUserMaxValue = !isBot && Number.isFinite(Number(userRunningMaxKm)) && Number(userRunningMaxKm) > 0;
   const showAverage = showBotAverageValue || showUserAverageValue;
   const averageLabel = isBot && botCardType === "evenement" ? "Distance" : "Moyenne";
   const averageValue = showBotAverageValue ? Number(botAvgDistance) : Number(userRunningAvgKm);
+  const maxValue = Number(userRunningMaxKm);
 
   const [cardTilt, setCardTilt] = useState({ x: 0, y: 0, active: false });
   const [autoTilt, setAutoTilt] = useState(false);
@@ -414,6 +419,22 @@ export function UserHoloCard({
                 </span>
               </div>
             )}
+            {showUserMaxValue && (
+              <div
+                className={[
+                  showAverage ? "mt-1" : "",
+                  leftAlignDetailsDesktop ? "md:self-start" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                <span className="text-xs uppercase tracking-wide text-emerald-200">Max</span>
+                <span className="ml-2 text-[14px] font-semibold text-white">
+                  {nfDecimal.format(maxValue)} km
+                  <span className="ml-1 italic text-white font-normal text-[13px]">(3 derniers mois)</span>
+                </span>
+              </div>
+            )}
             {showDescription && (
               <div className="mt-auto text-xs text-emerald-100/80 self-end text-right italic">
                 {userDescription}
@@ -422,7 +443,7 @@ export function UserHoloCard({
             </div>
             <div className="mt-3 flex items-center rounded-2xl border border-emerald-200/20 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200">
             <div className="flex items-center gap-2 text-[10px]">
-              NaTrack™ {dayjs().format("YYYY")}
+              NaTrack™ {cardYear}
             </div>
             <span className="ml-auto inline-flex items-center gap-1 text-[10px] opacity-70">
               {!showBackOnlySafe && (
