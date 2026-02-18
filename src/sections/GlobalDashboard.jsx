@@ -205,29 +205,43 @@ export function GlobalDashboard({
       const distanceKm = Number.isFinite(Number(s?.distance)) ? Number(s.distance) / 1000 : null;
       const dateKey = s?.date ? toParis(s.date)?.startOf("day")?.format("YYYY-MM-DD") : null;
       let compareBeaten = null;
-      if (
-        currentUserId &&
-        s?.user_id &&
-        String(s.user_id) === String(currentUserId) &&
-        String(s?.type || "").toLowerCase() === "run" &&
-        Number.isFinite(Number(s?.distance))
-      ) {
+      const isRun = String(s?.type || "").toLowerCase() === "run";
+      const distanceMeters = Number(s?.distance);
+      if (currentUserId && s?.user_id && isRun && Number.isFinite(distanceMeters)) {
         const map = dateKey ? byDateUserMax.get(dateKey) : null;
         if (map) {
-          const beaten = [];
-          map.forEach((otherDist, otherUserId) => {
-            if (String(otherUserId) === String(currentUserId)) return;
-            if (Number(s.distance) >= Number(otherDist)) {
-              const name = userNameById.get(String(otherUserId)) || "Utilisateur";
-              beaten.push({ name, dist: Number(otherDist) || 0 });
-            }
-          });
-          if (beaten.length) {
-            beaten.sort((a, b) => b.dist - a.dist);
+          if (String(s.user_id) === String(currentUserId)) {
+            const beaten = [];
+            map.forEach((otherDist, otherUserId) => {
+              if (String(otherUserId) === String(currentUserId)) return;
+              if (distanceMeters >= Number(otherDist)) {
+                const name = userNameById.get(String(otherUserId)) || "Utilisateur";
+                beaten.push({ name, dist: Number(otherDist) || 0 });
+              }
+            });
+            if (beaten.length) {
+              beaten.sort((a, b) => b.dist - a.dist);
             compareBeaten = beaten.map((b) => ({
               name: b.name,
               kmLabel: `${formatKmFixed(b.dist / 1000)} km`,
+              isCurrent: false,
             }));
+            }
+          } else {
+            let currentUserDist = null;
+            map.forEach((dist, userId) => {
+              if (String(userId) === String(currentUserId)) currentUserDist = Number(dist) || 0;
+            });
+            if (currentUserDist !== null && distanceMeters >= currentUserDist) {
+              const name = userNameById.get(String(currentUserId)) || "Toi";
+              compareBeaten = [
+                {
+                  name,
+                  kmLabel: `${formatKmFixed(currentUserDist / 1000)} km`,
+                  isCurrent: true,
+                },
+              ];
+            }
           }
         }
       }
@@ -425,6 +439,7 @@ export function GlobalDashboard({
         const lastUniqueLabel = lastUniqueRaw && dayjs(lastUniqueRaw).isValid()
           ? dayjs(lastUniqueRaw).locale("fr").format("D MMM YYYY")
           : null;
+        const totalCards = defi + rare + evenement;
         const score = defi + evenement * 2 + rare * 3;
         return {
           id: u?.id,
@@ -433,6 +448,7 @@ export function GlobalDashboard({
           rare,
           evenement,
           lastLabel: lastUniqueLabel,
+          totalCards,
           score,
           user: u,
         };

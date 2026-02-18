@@ -83,7 +83,12 @@ export function PlayerCardsSection({
                           <Newspaper size={14} className="text-amber-500 dark:text-amber-300" />
                           {row.evenement}
                         </span>
-                        <span className="text-right font-semibold text-slate-900 dark:text-slate-100">{row.score}</span>
+                        <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                          {row.score}{" "}
+                          <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                            ({row.totalCards} {row.totalCards > 1 ? "cartes" : "carte"})
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </div>
