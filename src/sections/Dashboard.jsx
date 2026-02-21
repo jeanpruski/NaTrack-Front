@@ -148,6 +148,11 @@ export function Dashboard({
     loadStravaLogs();
   }, [adminTab, isOwnUser, authToken]);
 
+  useEffect(() => {
+    if (!isOwnUser || !authToken) return;
+    loadStravaStatus();
+  }, [isOwnUser, authToken]);
+
   const dueLabel = isEventChallenge
     ? <>À réaliser avant <span className="underline">demain</span></>
     : (
@@ -168,6 +173,9 @@ export function Dashboard({
       showAdminAction={Boolean((isAdmin || isOwnUser) && !isBotUser)}
       onAdminAction={() => setShowAdminPanel((v) => !v)}
       isAdminPanelOpen={showAdminPanel}
+      showStravaBadge={Boolean(
+        !isBotUser && (userInfo?.strava_connected || (isOwnUser && stravaStatus?.connected))
+      )}
       toRgba={toRgba}
     />
   );
@@ -237,13 +245,7 @@ export function Dashboard({
               />
             ) : (
               <div className="grid gap-4">
-                {!isAdmin && (
-                  <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 px-4 py-4 text-sm text-amber-900 shadow-sm dark:border-amber-400/30 dark:bg-amber-900/20 dark:text-amber-100">
-                    L’intégration Strava est temporairement réservée aux admins.
-                  </div>
-                )}
-                {isAdmin && (
-                  <>
+                <>
                     <div className="rounded-2xl border border-blue-200/70 bg-white/70 px-4 py-5 text-sm text-blue-900 shadow-sm dark:border-blue-400/30 dark:bg-slate-900/30 dark:text-blue-100">
                       <div className="text-base font-semibold text-slate-900 dark:text-slate-100">
                         Connexion Strava
@@ -422,8 +424,7 @@ export function Dashboard({
                         )}
                       </div>
                     )}
-                  </>
-                )}
+                </>
               </div>
             )}
           </div>

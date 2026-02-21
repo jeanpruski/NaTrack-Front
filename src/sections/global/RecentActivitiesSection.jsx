@@ -59,6 +59,7 @@ export function RecentActivitiesSection({
                   <div className="mt-2 grid gap-2">
     {recentActivitiesShown.map((row) => {
       const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+      const isStravaConnected = Boolean(targetUser?.strava_connected);
       const isMine = currentUserId && row.userId && String(row.userId) === String(currentUserId);
       const canLike = !!(isAuth && !isMine && row.sessionId);
       const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
@@ -143,6 +144,14 @@ export function RecentActivitiesSection({
                             >
                               {row.userName}
                             </span>
+                            {isStravaConnected && (
+                              <img
+                                src="/strava/strava-icon.svg"
+                                alt="Strava connecté"
+                                title="Strava connecté"
+                                className="ml-1 inline-block h-3.5 w-3.5 align-middle"
+                              />
+                            )}
                             <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
                               ({row.dateLabel})
                             </span>
@@ -202,6 +211,7 @@ export function RecentActivitiesSection({
               <div className="grid gap-2 md:hidden">
                 {recentActivitiesShown.map((row) => {
                   const targetUser = row.userId ? userById.get(String(row.userId)) : null;
+                  const isStravaConnected = Boolean(targetUser?.strava_connected);
                   const isMine = currentUserId && row.userId && String(row.userId) === String(currentUserId);
                   const canLike = !!(isAuth && !isMine && row.sessionId);
                   const isLiked = canLike && sessionLikesSet.has(String(row.sessionId));
@@ -247,10 +257,18 @@ export function RecentActivitiesSection({
                                 : "text-slate-900 dark:text-slate-100"
                             }`}
                           >
-                            {row.userName}{" "}
+                            {row.userName}
+                            {isStravaConnected && (
+                              <img
+                                src="/strava/strava-icon.svg"
+                                alt="Strava connecté"
+                                title="Strava connecté"
+                                className="ml-1 inline-block h-3.5 w-3.5 align-middle"
+                              />
+                            )}{" "}
                             <span className="text-xs text-slate-500 dark:text-slate-400">({row.dateLabel})</span>
                           </div>
-                          <div className="mt-1 flex items-center gap-2 truncate text-xs text-slate-500 dark:text-slate-400">
+                          <div className="mt-2 flex items-center gap-2 truncate text-xs text-slate-500 dark:text-slate-400">
                             {row.challengeType === "defi" ? (
                               <Swords size={12} className="text-rose-600 dark:text-rose-300" />
                             ) : row.challengeType === "rare" ? (
@@ -298,7 +316,7 @@ export function RecentActivitiesSection({
                         </div>
                       </div>
                       {row.compareBeaten?.length ? (
-                        <div className={`mt-1 flex flex-col gap-2 text-xs ${beatenDistClass}`}>
+                        <div className={`mt-2 flex flex-col gap-2 text-xs ${beatenDistClass}`}>
                           {row.compareBeaten.map((p) => (
                             <span
                               key={`${row.id}-beat-mobile-${p.name}`}

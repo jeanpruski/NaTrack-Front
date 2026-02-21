@@ -15,6 +15,7 @@ export function HeroBadge({
   isAdminPanelOpen,
   onRefresh,
   isRefreshing = false,
+  showStravaBadge = false,
   toRgba,
 }) {
   const [hover, setHover] = useState(false);
@@ -63,6 +64,14 @@ export function HeroBadge({
                 <User size={18} className="text-slate-900 dark:text-white" />
               )}
               <span className="whitespace-nowrap">{displayName}</span>
+              {showStravaBadge && (
+                <img
+                  src="/strava/strava-icon.svg"
+                  alt="Strava connecté"
+                  title="Strava connecté"
+                  className="h-4 w-4"
+                />
+              )}
             </div>
             {showCardCounts && (
               <span className="flex flex-wrap items-center gap-2 text-[18px] font-extrabold text-slate-800 dark:text-slate-100">
