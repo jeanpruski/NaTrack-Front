@@ -98,6 +98,11 @@ export function RecordsAndShareSection({
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 <Gauge size={14} />
                 <span>Série la plus longue</span>
+                {records.streakBest?.meters != null ? (
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    — {nf.format(records.streakBest.meters)} m
+                  </span>
+                ) : null}
               </div>
               <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {records.streakBest

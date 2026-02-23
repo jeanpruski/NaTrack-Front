@@ -65,6 +65,14 @@ export function PlayerCardsSection({
                           }`}
                         >
                           {row.name}
+                          {row?.user?.strava_connected ? (
+                            <img
+                              src="/strava/strava-icon.svg"
+                              alt="Strava connecté"
+                              title="Strava connecté"
+                              className="ml-1 inline-block h-3.5 w-3.5 align-middle"
+                            />
+                          ) : null}
                           {row.lastLabel ? (
                             <span className="ml-2 text-[12px] font-medium text-slate-500 dark:text-slate-400">
                               ({row.lastLabel})
@@ -114,6 +122,14 @@ export function PlayerCardsSection({
                         }`}
                       >
                         {row.name}
+                        {row?.user?.strava_connected ? (
+                          <img
+                            src="/strava/strava-icon.svg"
+                            alt="Strava connecté"
+                            title="Strava connecté"
+                            className="ml-1 inline-block h-3.5 w-3.5 align-middle"
+                          />
+                        ) : null}
                         {row.lastLabel ? (
                           <span className="ml-2 text-[12px] font-medium text-slate-500 dark:text-slate-400">
                             ({row.lastLabel})

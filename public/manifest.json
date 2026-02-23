@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "NaTrack",
+  "name": "Track smarter. Train harder.",
   "icons": [
     {
       "src": "apple-touch-icon-v2.png",

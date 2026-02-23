@@ -421,6 +421,7 @@ export function GlobalDashboard({
         name: u.name,
         total: totalsByUser?.[u.id] || 0,
         isBot: Boolean(u?.is_bot),
+        strava_connected: u?.strava_connected,
       }))
       .sort((a, b) => b.total - a.total);
   }, [podiumUsers, totalsByUser]);

@@ -127,7 +127,17 @@ export function PodiumSection({
                           ) : (
                             <User size={16} className="text-slate-500 dark:text-slate-400" />
                           )}
-                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{u.name}</div>
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {u.name}
+                            {u?.strava_connected ? (
+                              <img
+                                src="/strava/strava-icon.svg"
+                                alt="Strava connecté"
+                                title="Strava connecté"
+                                className="ml-1 inline-block h-3.5 w-3.5 align-middle"
+                              />
+                            ) : null}
+                          </div>
                         </div>
                         <div className="text-xl font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                           {nfDecimal.format(u.total / 1000)} km

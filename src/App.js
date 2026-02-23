@@ -1058,6 +1058,7 @@ export default function App() {
     const weekTotals = new Map();
     const daysSet = new Set();
     const daySportCounts = new Map();
+    const dayDistanceTotals = new Map();
 
     shownSessions.forEach((s) => {
       const d = Number(s.distance) || 0;
@@ -1082,6 +1083,7 @@ export default function App() {
       if (t === "run") dayPrev.run += 1;
       else dayPrev.swim += 1;
       daySportCounts.set(dayKey, dayPrev);
+      dayDistanceTotals.set(dayKey, (dayDistanceTotals.get(dayKey) || 0) + d);
     });
 
     let bestWeek = null;
@@ -1096,23 +1098,28 @@ export default function App() {
     let prevDay = null;
     let streakSwim = 0;
     let streakRun = 0;
+    let streakMeters = 0;
 
     days.forEach((day) => {
       const dayCounts = daySportCounts.get(day) || { swim: 0, run: 0 };
+      const dayMeters = dayDistanceTotals.get(day) || 0;
       if (!prevDay) {
         streakLen = 1;
         streakStart = day;
         streakSwim = dayCounts.swim;
         streakRun = dayCounts.run;
+        streakMeters = dayMeters;
       } else if (dayjs(day).diff(dayjs(prevDay), "day") === 1) {
         streakLen += 1;
         streakSwim += dayCounts.swim;
         streakRun += dayCounts.run;
+        streakMeters += dayMeters;
       } else {
         streakLen = 1;
         streakStart = day;
         streakSwim = dayCounts.swim;
         streakRun = dayCounts.run;
+        streakMeters = dayMeters;
       }
 
       if (!streakBest || streakLen > streakBest.length) {
@@ -1122,6 +1129,7 @@ export default function App() {
           end: day,
           swim: streakSwim,
           run: streakRun,
+          meters: streakMeters,
         };
       }
       prevDay = day;
@@ -1693,7 +1701,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.17{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.18{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
