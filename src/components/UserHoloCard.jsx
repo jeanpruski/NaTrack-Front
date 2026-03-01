@@ -289,7 +289,7 @@ export const UserHoloCard = React.memo(function UserHoloCard({
               ? "user-card-auto-tilt-soft"
               : "user-card-auto-tilt"
             : ""
-        }`}
+        } ${showBackOnlySafe ? "opacity-15" : "opacity-100"}`}
         style={{
           backgroundImage: botBorderGradient || undefined,
           transform: autoTilt
