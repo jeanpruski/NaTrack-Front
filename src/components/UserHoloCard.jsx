@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { Bot, Diamond, Newspaper, Sparkles, Swords, User } from "lucide-react";
 
-export function UserHoloCard({
+export const UserHoloCard = React.memo(function UserHoloCard({
   user,
   nfDecimal,
   userRankInfo,
@@ -24,6 +24,7 @@ export function UserHoloCard({
   const userShoeStart = user?.shoe_start_date || "";
   const userShoeTarget = user?.shoe_target_km;
   const userCardImage = user?.card_image || "";
+  const effectiveCardImage = showBackOnlySafe ? "" : userCardImage;
   const userDescription = user?.description || "";
   const createdAt = user?.created_at || user?.card_created_at || "";
   const cardYear = dayjs(createdAt).isValid() ? dayjs(createdAt).format("YYYY") : dayjs().format("YYYY");
@@ -142,7 +143,7 @@ export function UserHoloCard({
       setShowCardSpinner(true);
     }
 
-    if (!userCardImage) {
+    if (!effectiveCardImage) {
       setCardImageReady(true);
       if (minSpinnerMs > 0) {
         spinnerTimerRef.current = setTimeout(() => setShowCardSpinner(false), minSpinnerMs);
@@ -152,7 +153,7 @@ export function UserHoloCard({
       return;
     }
 
-    if (loadedImagesRef.current.has(userCardImage)) {
+    if (loadedImagesRef.current.has(effectiveCardImage)) {
       setCardImageReady(true);
       if (minSpinnerMs > 0) {
         spinnerTimerRef.current = setTimeout(() => setShowCardSpinner(false), minSpinnerMs);
@@ -167,7 +168,7 @@ export function UserHoloCard({
     const handleDone = () => setCardImageReady(true);
     img.onload = handleDone;
     img.onerror = handleDone;
-    img.src = userCardImage;
+    img.src = effectiveCardImage;
     if (img.complete) {
       setCardImageReady(true);
     }
@@ -175,11 +176,11 @@ export function UserHoloCard({
       img.onload = null;
       img.onerror = null;
     };
-  }, [userCardImage, minSpinnerMs, showBackOnlySafe]);
+  }, [effectiveCardImage, minSpinnerMs, showBackOnlySafe]);
 
   useEffect(() => {
     if (!cardImageReady) return;
-    if (userCardImage) loadedImagesRef.current.add(userCardImage);
+    if (effectiveCardImage) loadedImagesRef.current.add(effectiveCardImage);
     if (minSpinnerMs <= 0) {
       setShowCardSpinner(false);
       return;
@@ -194,7 +195,7 @@ export function UserHoloCard({
         spinnerTimerRef.current = null;
       }
     };
-  }, [cardImageReady, userCardImage, minSpinnerMs, showBackOnlySafe]);
+  }, [cardImageReady, effectiveCardImage, minSpinnerMs, showBackOnlySafe]);
 
   const handleTiltMove = (evt) => {
     const rect = cardRef.current?.getBoundingClientRect();
@@ -247,6 +248,11 @@ export function UserHoloCard({
   const showShadow = elevated || cardTilt.active;
   const showContent = !isCardLoading && !showBackOnlySafe;
   const hideBrandMarks = isCardLoading || showBackOnlySafe;
+  const shadowClass = showShadow
+    ? isMobile
+      ? "shadow-[0_14px_50px_rgba(0,0,0,0.45)] dark:shadow-[0_14px_50px_rgba(255,255,255,0.28)]"
+      : "shadow-[0_28px_110px_rgba(0,0,0,0.75)] dark:shadow-[0_28px_110px_rgba(255,255,255,0.55)]"
+    : "";
 
   return (
     <div
@@ -277,9 +283,7 @@ export function UserHoloCard({
               },
             }
           : {})}
-        className={`relative select-none rounded-[28px] bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-2 ${
-          showShadow ? "shadow-[0_28px_110px_rgba(0,0,0,0.75)] dark:shadow-[0_28px_110px_rgba(255,255,255,0.55)]" : ""
-        } ${
+        className={`relative select-none rounded-[28px] bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-2 ${shadowClass} ${
           autoTilt
             ? autoTiltVariant === "soft"
               ? "user-card-auto-tilt-soft"
@@ -301,14 +305,22 @@ export function UserHoloCard({
         <img
           src="/na-logo.png"
           alt="NaTrack"
-          className={`pointer-events-none absolute right-3 top-[53%] z-20 h-14 w-auto -translate-y-1/2 grayscale-[0.15] drop-shadow-[0_10px_26px_rgba(16,185,129,0.65)] ${
+          loading="lazy"
+          decoding="async"
+          className={`pointer-events-none absolute right-3 top-[53%] z-20 h-14 w-auto -translate-y-1/2 grayscale-[0.15] ${
+            isMobile ? "drop-shadow-none" : "drop-shadow-[0_10px_26px_rgba(16,185,129,0.65)]"
+          } ${
             hideBrandMarks ? "opacity-0" : "opacity-100"
           }`}
         />
         <img
           src="/nacards-logo.png"
           alt="NaCards"
-          className={`pointer-events-none absolute -left-3 top-4 z-20 h-12 w-auto drop-shadow-[0_6px_16px_rgba(16,185,129,0.5)] ${
+          loading="lazy"
+          decoding="async"
+          className={`pointer-events-none absolute -left-3 top-4 z-20 h-12 w-auto ${
+            isMobile ? "drop-shadow-none" : "drop-shadow-[0_6px_16px_rgba(16,185,129,0.5)]"
+          } ${
             hideBrandMarks ? "opacity-0" : "opacity-100"
           }`}
         />
@@ -339,9 +351,9 @@ export function UserHoloCard({
             <div
             className="relative mt-3 aspect-[6/4] w-full overflow-visible rounded-[22px] border border-emerald-200/40 bg-gradient-to-br from-slate-900 via-emerald-900/40 to-slate-900"
             style={
-              userCardImage
+              effectiveCardImage
                 ? {
-                    backgroundImage: `url(${userCardImage})`,
+                    backgroundImage: `url(${effectiveCardImage})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }
@@ -356,22 +368,28 @@ export function UserHoloCard({
                 {Number(botSeason)}
               </span>
             )}
-            {userCardImage && (
+            {effectiveCardImage && (
               <img
-                src={userCardImage}
+                src={effectiveCardImage}
                 alt=""
                 className="hidden"
+                loading="lazy"
+                decoding="async"
                 onLoad={() => setCardImageReady(true)}
                 onError={() => setCardImageReady(true)}
               />
             )}
-            {!userCardImage && (
+            {!effectiveCardImage && (
               <div className="flex h-full w-full items-center justify-center">
                 <img
                   src="/big-logo.png"
                   alt=""
                   aria-hidden="true"
-                  className="h-20 w-auto opacity-70 drop-shadow-[0_8px_18px_rgba(16,185,129,0.5)]"
+                  loading="lazy"
+                  decoding="async"
+                  className={`h-20 w-auto opacity-70 ${
+                    isMobile ? "drop-shadow-none" : "drop-shadow-[0_8px_18px_rgba(16,185,129,0.5)]"
+                  }`}
                 />
               </div>
             )}
@@ -490,7 +508,11 @@ export function UserHoloCard({
                 <img
                   src="/nacards-logo.png"
                   alt="NaCards"
-                  className="h-20 w-auto opacity-90 drop-shadow-[0_8px_18px_rgba(16,185,129,0.5)]"
+                  loading="lazy"
+                  decoding="async"
+                  className={`h-20 w-auto opacity-90 ${
+                    isMobile ? "drop-shadow-none" : "drop-shadow-[0_8px_18px_rgba(16,185,129,0.5)]"
+                  }`}
                 />
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-200/70 border-t-transparent" />
               </div>
@@ -502,7 +524,11 @@ export function UserHoloCard({
               <img
                 src="/nacards-logo.png"
                 alt="NaCards"
-                className="h-20 w-auto opacity-90 drop-shadow-[0_8px_18px_rgba(16,185,129,0.5)]"
+                loading="lazy"
+                decoding="async"
+                className={`h-20 w-auto opacity-90 ${
+                  isMobile ? "drop-shadow-none" : "drop-shadow-[0_8px_18px_rgba(16,185,129,0.5)]"
+                }`}
               />
             </div>
           )}
@@ -510,4 +536,4 @@ export function UserHoloCard({
       </div>
     </div>
   );
-}
+});
