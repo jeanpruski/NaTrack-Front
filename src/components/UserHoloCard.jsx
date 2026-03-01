@@ -73,7 +73,7 @@ export const UserHoloCard = React.memo(function UserHoloCard({
     return () => mq.removeEventListener?.("change", update);
   }, []);
 
-  const disableTiltEffective = disableTilt || (isMobile && !elevated);
+  const disableTiltEffective = disableTilt || (isMobile && !elevated) || showBackOnlySafe;
 
   useEffect(() => {
     if (disableTiltEffective || !autoTiltOnMobile) {

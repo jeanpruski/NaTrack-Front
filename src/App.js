@@ -93,7 +93,7 @@ export default function App() {
   const [showCardsPage, setShowCardsPage] = useState(false);
   const [cardsFilter, setCardsFilter] = useState("mixte");
   const initialFiltersRef = useRef(readFilterParams());
-  const [cardsCompact, setCardsCompact] = useState(() => !!initialFiltersRef.current.compact);
+  const [cardsCompact, setCardsCompact] = useState(() => initialFiltersRef.current.compact ?? true);
   const [showAllCardsFront, setShowAllCardsFront] = useState(false);
   const [showMoreRecent, setShowMoreRecent] = useState(() => !!initialFiltersRef.current.dashRecent);
   const [showMorePodium, setShowMorePodium] = useState(() => !!initialFiltersRef.current.dashPodium);

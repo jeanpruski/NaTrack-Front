@@ -600,7 +600,7 @@ export function UserCardsPage({
             onClick={() => setCompactView((v) => !v)}
             className="rounded-full border border-emerald-300/70 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-400/50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
           >
-            {compactView ? "Vue normale" : "Vue compacte"}
+            {compactView ? "Mode zoom" : "Vue compacte"}
           </button>
         </div>
       </div>
@@ -628,11 +628,12 @@ export function UserCardsPage({
             <div
               onClick={() => {
                 if (!compactView) return;
+                if (isLockedBot(u) || isLockedUser(u)) return;
                 setPreviewUser(u);
               }}
               className={`relative ${
                 compactView
-                  ? "scale-[0.32] origin-top translate-y-[2px] cursor-zoom-in md:scale-[0.55] md:origin-top md:-my-14 md:translate-y-[58px]"
+                  ? `scale-[0.32] origin-top translate-y-[2px] ${isLockedBot(u) || isLockedUser(u) ? "cursor-default" : "cursor-zoom-in"} md:scale-[0.55] md:origin-top md:-my-14 md:translate-y-[58px]`
                   : ""
               } ${
                 highlightId === String(u.id)
