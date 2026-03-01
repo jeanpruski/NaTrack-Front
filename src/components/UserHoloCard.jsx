@@ -51,6 +51,7 @@ export function UserHoloCard({
   const [cardImageReady, setCardImageReady] = useState(false);
   const [showCardSpinner, setShowCardSpinner] = useState(minSpinnerMs > 0);
   const isCardLoading = showCardSpinner;
+  const [isMobile, setIsMobile] = useState(false);
 
   const cardRef = useRef(null);
   const holoRef = useRef(null);
@@ -63,7 +64,18 @@ export function UserHoloCard({
   const PERSPECTIVE = 700;
 
   useEffect(() => {
-    if (disableTilt || !autoTiltOnMobile) {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px), (pointer: coarse)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+
+  const disableTiltEffective = disableTilt || (isMobile && !elevated);
+
+  useEffect(() => {
+    if (disableTiltEffective || !autoTiltOnMobile) {
       setAutoTilt(false);
       return;
     }
@@ -72,7 +84,7 @@ export function UserHoloCard({
     update();
     mq.addEventListener?.("change", update);
     return () => mq.removeEventListener?.("change", update);
-  }, [autoTiltOnMobile, disableTilt]);
+  }, [autoTiltOnMobile, disableTiltEffective]);
 
   const toRgba = (hex, alpha) => {
     if (!hex) return "";
@@ -243,7 +255,7 @@ export function UserHoloCard({
     >
       <div
         ref={cardRef}
-        {...(!autoTilt && !disableTilt
+        {...(!autoTilt && !disableTiltEffective
           ? {
               onPointerDown: (evt) => {
                 isPointerDownRef.current = true;
@@ -278,7 +290,9 @@ export function UserHoloCard({
           backgroundImage: botBorderGradient || undefined,
           transform: autoTilt
             ? undefined
-            : `rotateX(${cardTilt.x}deg) rotateY(${cardTilt.y}deg) translateZ(${cardTilt.active ? 18 : 0}px) scale(${cardTilt.active ? 1.03 : 1})`,
+            : disableTiltEffective
+              ? "none"
+              : `rotateX(${cardTilt.x}deg) rotateY(${cardTilt.y}deg) translateZ(${cardTilt.active ? 18 : 0}px) scale(${cardTilt.active ? 1.03 : 1})`,
           transformStyle: "preserve-3d",
           transition: autoTilt ? undefined : cardTilt.active ? "transform 50ms linear" : "transform 220ms ease",
           willChange: "transform",

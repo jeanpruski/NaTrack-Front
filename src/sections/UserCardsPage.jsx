@@ -606,8 +606,8 @@ export function UserCardsPage({
       </div>
       <div
         className={[
-          "mx-auto flex w-full max-w-[1900px] flex-wrap justify-center gap-0",
-          compactView ? "md:gap-1" : "md:gap-2",
+          "mx-auto flex w-full max-w-[1900px] flex-wrap justify-center",
+          compactView ? "gap-0" : "gap-2 md:gap-2",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -619,7 +619,7 @@ export function UserCardsPage({
             className={[
               "flex flex-col items-center gap-2",
               compactView
-                ? "w-[124px] min-w-[114px] gap-0 h-[175px] md:w-[200px] md:min-w-[180px] md:gap-2 md:h-[295px]"
+                ? "w-[115px] min-w-[105px] gap-0 h-[175px] md:w-[200px] md:min-w-[180px] md:gap-2 md:h-[295px]"
                 : "w-[360px] min-w-[342px]",
             ]
               .filter(Boolean)
