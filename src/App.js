@@ -5,8 +5,9 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "dayjs/locale/fr";
 import { v4 as uuidv4 } from "uuid";
-import { Check, Newspaper, Sparkles, Swords, Trophy } from "lucide-react";
+import { BarChart3, Check, Newspaper, Sparkles, Swords, Trophy } from "lucide-react";
 import { AppHeader } from "./sections/AppHeader";
+import { AdminChallengeStatsModal } from "./sections/AdminChallengeStatsModal";
 import { EditModal } from "./sections/EditModal";
 import { Dashboard } from "./sections/Dashboard";
 import { GlobalDashboard } from "./sections/GlobalDashboard";
@@ -90,6 +91,7 @@ export default function App() {
   } = useAppData({ authToken, isAuth, setError });
   const [showEditModal, setShowEditModal] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [adminStatsOpen, setAdminStatsOpen] = useState(false);
   const [showCardsPage, setShowCardsPage] = useState(false);
   const [cardsFilter, setCardsFilter] = useState("mixte");
   const initialFiltersRef = useRef(readFilterParams());
@@ -1701,7 +1703,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.19{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.20{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
@@ -2102,6 +2104,15 @@ export default function App() {
                 >
                   <Trophy size={16} />
                 </button>
+                <button
+                  type="button"
+                  aria-label="Stats cartes"
+                  title="Stats cartes"
+                  onClick={() => setAdminStatsOpen(true)}
+                  className="rounded-full border border-slate-200/80 bg-white/80 p-2 text-slate-700 shadow-sm hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <BarChart3 size={16} />
+                </button>
               </div>
             )}
           </div>
@@ -2130,6 +2141,11 @@ export default function App() {
         onExport={exportCSV}
         onImport={importCSV}
         initialTab={editModalInitialTab}
+      />
+      <AdminChallengeStatsModal
+        open={adminStatsOpen && isAdmin}
+        onClose={() => setAdminStatsOpen(false)}
+        authToken={authToken}
       />
     </div>
   );
