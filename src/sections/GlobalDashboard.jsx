@@ -698,15 +698,6 @@ export function GlobalDashboard({
           onOpenMyOptions={onOpenMyOptions}
           nfDecimal={nfDecimal}
         />
-        <NewsSection
-          onOpenNewsArchive={onOpenNewsArchive}
-          newsItems={newsItems}
-          newsLoading={newsLoading}
-          newsError={newsError}
-          latestNews={latestNews}
-          newsImageReadyMap={newsImageReadyMap}
-          formatEventDate={formatEventDate}
-        />
         <RecentActivitiesSection
           showRecentActivityCard={showRecentActivityCard}
           recentActivities={recentActivities}
@@ -720,6 +711,15 @@ export function GlobalDashboard({
           sessionLikePendingSet={sessionLikePendingSet}
           onToggleSessionLike={onToggleSessionLike}
           onSelectUser={onSelectUser}
+        />
+        <NewsSection
+          onOpenNewsArchive={onOpenNewsArchive}
+          newsItems={newsItems}
+          newsLoading={newsLoading}
+          newsError={newsError}
+          latestNews={latestNews}
+          newsImageReadyMap={newsImageReadyMap}
+          formatEventDate={formatEventDate}
         />
         <PodiumSection
           totals={totals}
