@@ -712,15 +712,6 @@ export function GlobalDashboard({
           onToggleSessionLike={onToggleSessionLike}
           onSelectUser={onSelectUser}
         />
-        <NewsSection
-          onOpenNewsArchive={onOpenNewsArchive}
-          newsItems={newsItems}
-          newsLoading={newsLoading}
-          newsError={newsError}
-          latestNews={latestNews}
-          newsImageReadyMap={newsImageReadyMap}
-          formatEventDate={formatEventDate}
-        />
         <PodiumSection
           totals={totals}
           subtitle={subtitle}
@@ -733,6 +724,15 @@ export function GlobalDashboard({
           sparklineMap={sparklineMap}
           onSelectUser={onSelectUser}
           nfDecimal={nfDecimal}
+        />
+        <NewsSection
+          onOpenNewsArchive={onOpenNewsArchive}
+          newsItems={newsItems}
+          newsLoading={newsLoading}
+          newsError={newsError}
+          latestNews={latestNews}
+          newsImageReadyMap={newsImageReadyMap}
+          formatEventDate={formatEventDate}
         />
         <PlayerCardsSection
           cardCountsByUser={cardCountsByUser}

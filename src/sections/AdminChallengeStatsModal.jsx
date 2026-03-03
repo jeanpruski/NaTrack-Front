@@ -215,7 +215,10 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                     const total = toNumber(row.total_count) + toNumber(row.event_count);
                     const seasonCount =
                       toNumber(row.season_current_count) + toNumber(row.event_season_current_count);
+                    const noneCount =
+                      toNumber(row.season_none_count) + toNumber(row.event_season_none_count);
                     const value = pct(seasonCount, total);
+                    const nonePct = pct(noneCount, total);
                     const hasEvent = toNumber(row.event_count) > 0;
                     const rareCurrent = toNumber(row.rare_season_current_count);
                     const rareOther = toNumber(row.rare_season_other_count);
@@ -230,7 +233,7 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                               ? "bg-amber-200/80 dark:bg-amber-400/25"
                               : "bg-emerald-100 dark:bg-emerald-500/20"
                           }`}
-                          title={`${row.stat_date}: ${value}% (saison courante, events inclus). Rares: ${rareCurrentPct}% saison courante, ${rareOtherPct}% saisons precedentes.`}
+                          title={`${row.stat_date}: ${value}% (saison courante, events inclus). Sans saison: ${nonePct}%. Rares: ${rareCurrentPct}% saison courante, ${rareOtherPct}% saisons precedentes.`}
                         >
                           <div
                             className={`h-full w-full origin-bottom scale-y-0 transition-transform duration-300 ${
@@ -239,6 +242,10 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                             style={{ transform: `scaleY(${Math.max(0.05, value / 100)})` }}
                           />
                           <div className="pointer-events-none absolute inset-0">
+                            <div
+                              className="absolute bottom-0 left-0 right-0 bg-white/90 border-t border-black/40 dark:bg-white/80"
+                              style={{ height: `${nonePct}%` }}
+                            />
                             <div
                               className="absolute bottom-0 left-0 right-0 bg-sky-400/90 border-t border-black/70"
                               style={{ height: `${rareTotalPct}%` }}
