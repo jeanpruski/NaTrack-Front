@@ -1434,9 +1434,12 @@ export default function App() {
   const cardsUnlockedCounts = useMemo(() => {
     const counts = { user: 0, defi: 0, rare: 0, evenement: 0 };
     const totals = { user: 0, defi: 0, rare: 0, evenement: 0 };
+    const currentUserId = user?.id !== undefined && user?.id !== null ? String(user.id) : null;
     (users || []).forEach((u) => {
       if (!u?.is_bot) {
-        totals.user += 1;
+        if (!currentUserId || String(u.id) !== currentUserId) {
+          totals.user += 1;
+        }
         return;
       }
       const type = String(u?.bot_card_type || "").toLowerCase();
@@ -1445,12 +1448,11 @@ export default function App() {
       }
     });
     const seenUsers = new Set();
-    if (user?.id !== undefined && user?.id !== null) {
-      seenUsers.add(String(user.id));
-    }
     (userCardResults || []).forEach((r) => {
       if (!r?.target_user_id) return;
-      seenUsers.add(String(r.target_user_id));
+      const targetId = String(r.target_user_id);
+      if (currentUserId && targetId === currentUserId) return;
+      seenUsers.add(targetId);
     });
     counts.user = seenUsers.size;
     const seen = { defi: new Set(), rare: new Set(), evenement: new Set() };
@@ -1473,6 +1475,64 @@ export default function App() {
       evenementTotal: totals.evenement,
     };
   }, [cardResults, users, userCardResults, user?.id]);
+
+  const userCardsByUser = useMemo(() => {
+    const realUserIds = new Set((users || []).filter((u) => !u?.is_bot).map((u) => String(u.id)));
+    if (!realUserIds.size) return {};
+    const byDate = new Map();
+    (sessions || []).forEach((s) => {
+      if (!s?.user_id || !s?.date) return;
+      const userId = String(s.user_id);
+      if (!realUserIds.has(userId)) return;
+      const type = String(s.type || "").toLowerCase();
+      if (type !== "run") return;
+      const d = dayjs(s.date);
+      if (!d.isValid()) return;
+      const dateKey = d.format("YYYY-MM-DD");
+      const dist = Number(s.distance) || 0;
+      if (!byDate.has(dateKey)) byDate.set(dateKey, new Map());
+      const map = byDate.get(dateKey);
+      const prev = map.get(userId) || 0;
+      if (dist > prev) map.set(userId, dist);
+    });
+    const beatenByUser = new Map();
+    const getSet = (id) => {
+      if (!beatenByUser.has(id)) beatenByUser.set(id, new Set());
+      return beatenByUser.get(id);
+    };
+    byDate.forEach((dateMap) => {
+      const rows = Array.from(dateMap.entries())
+        .map(([userId, dist]) => ({ userId, dist }))
+        .sort((a, b) => {
+          if (a.dist !== b.dist) return a.dist - b.dist;
+          return String(a.userId).localeCompare(String(b.userId));
+        });
+      let i = 0;
+      const smallerIds = [];
+      while (i < rows.length) {
+        let j = i;
+        const dist = rows[i].dist;
+        while (j + 1 < rows.length && rows[j + 1].dist === dist) j += 1;
+        const groupIds = rows.slice(i, j + 1).map((r) => r.userId);
+        groupIds.forEach((id) => {
+          const set = getSet(id);
+          smallerIds.forEach((otherId) => {
+            if (otherId !== id) set.add(otherId);
+          });
+          groupIds.forEach((otherId) => {
+            if (otherId !== id) set.add(otherId);
+          });
+        });
+        smallerIds.push(...groupIds);
+        i = j + 1;
+      }
+    });
+    const totals = {};
+    beatenByUser.forEach((set, id) => {
+      totals[id] = set.size;
+    });
+    return totals;
+  }, [sessions, users]);
 
   useEffect(() => {
     if (!isAuth || checking || !authToken) return;
@@ -1947,6 +2007,7 @@ export default function App() {
                   nfDecimal={nfDecimal}
                   onSelectUser={handleSelectUser}
                   currentUserId={user?.id || null}
+                  userCardsByUser={userCardsByUser}
                   sessionLikes={sessionLikes}
                   sessionLikePending={sessionLikePending}
                   onToggleSessionLike={toggleSessionLike}

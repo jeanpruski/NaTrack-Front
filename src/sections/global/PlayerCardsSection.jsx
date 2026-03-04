@@ -1,5 +1,5 @@
 import React from "react";
-import { Newspaper, Sparkles, Swords } from "lucide-react";
+import { Newspaper, Sparkles, Swords, User } from "lucide-react";
 import { Reveal } from "../../components/Reveal";
 
 export function PlayerCardsSection({
@@ -39,11 +39,20 @@ export function PlayerCardsSection({
             <>
               <div className="hidden md:block overflow-x-auto">
                 <div className="min-w-[560px]">
-                  <div className="grid grid-cols-[2fr_0.35fr_0.35fr_0.35fr_0.5fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                  <div className="grid grid-cols-[2fr_0.35fr_0.35fr_0.35fr_0.35fr_0.5fr] gap-3 rounded-xl bg-slate-100/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                     <span>Utilisateur</span>
-                    <span className="text-center">Défi</span>
-                    <span className="text-center">Rare</span>
-                    <span className="text-center">Event</span>
+                    <span className="text-center">
+                      Défi <span className="opacity-50">+2</span>
+                    </span>
+                    <span className="text-center">
+                      Rare <span className="opacity-50">+5</span>
+                    </span>
+                    <span className="text-center">
+                      Event <span className="opacity-50">+3</span>
+                    </span>
+                    <span className="text-center">
+                      USER <span className="opacity-50">+1</span>
+                    </span>
                     <span className="text-right">Score</span>
                   </div>
                       <div className="mt-2 grid gap-2">
@@ -51,7 +60,7 @@ export function PlayerCardsSection({
                           <button
                             key={row.id}
                             onClick={() => row.user && onSelectUser?.(row.user)}
-                            className={`grid grid-cols-[2fr_0.35fr_0.35fr_0.35fr_0.5fr] items-center gap-3 rounded-xl border px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md dark:text-slate-200 ${
+                            className={`grid grid-cols-[2fr_0.35fr_0.35fr_0.35fr_0.35fr_0.5fr] items-center gap-3 rounded-xl border px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md dark:text-slate-200 ${
                               currentUserId && String(row.id) === String(currentUserId)
                                 ? "border-emerald-200/70 bg-emerald-50/70 hover:border-emerald-300/70 hover:bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-900/20 dark:hover:border-emerald-400/60 dark:hover:bg-emerald-900/30"
                                 : "border-slate-200/60 bg-white/90 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:border-slate-500 dark:hover:bg-slate-900"
@@ -90,6 +99,10 @@ export function PlayerCardsSection({
                         <span className="flex items-center justify-center gap-1 text-slate-700 dark:text-slate-200">
                           <Newspaper size={14} className="text-amber-500 dark:text-amber-300" />
                           {row.evenement}
+                        </span>
+                        <span className="flex items-center justify-center gap-1 text-slate-700 dark:text-slate-200">
+                          <User size={14} className="text-emerald-600 dark:text-emerald-300" />
+                          {row.userCards}
                         </span>
                         <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
                           {row.score}{" "}
@@ -148,6 +161,10 @@ export function PlayerCardsSection({
                         <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-200">
                           <Newspaper size={12} className="text-amber-500 dark:text-amber-300" />
                           {row.evenement}
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-200">
+                          <User size={12} className="text-emerald-600 dark:text-emerald-300" />
+                          {row.userCards}
                         </span>
                       </div>
                     </div>

@@ -27,6 +27,7 @@ export function GlobalDashboard({
   users,
   allUsers,
   totalsByUser,
+  userCardsByUser = {},
   sessions,
   nfDecimal,
   onSelectUser,
@@ -433,6 +434,7 @@ export function GlobalDashboard({
     return pool
       .filter((u) => !u?.is_bot)
       .map((u) => {
+        const userCards = Number(userCardsByUser?.[String(u?.id)]) || 0;
         const defi = Number(u?.cards_defi) || 0;
         const rare = Number(u?.cards_rare) || 0;
         const evenement = Number(u?.cards_evenement) || 0;
@@ -440,11 +442,12 @@ export function GlobalDashboard({
         const lastUniqueLabel = lastUniqueRaw && dayjs(lastUniqueRaw).isValid()
           ? dayjs(lastUniqueRaw).locale("fr").format("D MMM YYYY")
           : null;
-        const totalCards = defi + rare + evenement;
-        const score = defi + evenement * 2 + rare * 3;
+        const totalCards = defi + rare + evenement + userCards;
+        const score = userCards + defi * 2 + evenement * 3 + rare * 5;
         return {
           id: u?.id,
           name: u?.name || "Utilisateur",
+          userCards,
           defi,
           rare,
           evenement,
@@ -458,7 +461,7 @@ export function GlobalDashboard({
         if (a.score !== b.score) return b.score - a.score;
         return String(a.name).localeCompare(String(b.name));
       });
-  }, [allUsers, users]);
+  }, [allUsers, users, userCardsByUser]);
   const cardCountsShown = useMemo(() => {
     const rows = cardCountsByUser.filter((u) => u.score > 0);
     return showMoreCards ? rows : rows.slice(0, 3);
