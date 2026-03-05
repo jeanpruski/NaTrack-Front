@@ -1567,10 +1567,6 @@ export default function App() {
       setSelectedUserCardCounts(null);
       return;
     }
-    if (user?.id && String(selectedUserInfo.id) === String(user.id)) {
-      setSelectedUserCardCounts(cardsUnlockedCounts);
-      return;
-    }
     let alive = true;
     (async () => {
       try {
@@ -1583,7 +1579,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [selectedUserInfo?.id, isAuth, authToken, user?.id, cardsUnlockedCounts]);
+  }, [selectedUserInfo?.id, isAuth, authToken]);
 
   const { handleRangeChange, handleModeChange } = useAppFilters({
     mode,
@@ -1763,7 +1759,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.20{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.21{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 

@@ -434,7 +434,7 @@ export function GlobalDashboard({
     return pool
       .filter((u) => !u?.is_bot)
       .map((u) => {
-        const userCards = Number(userCardsByUser?.[String(u?.id)]) || 0;
+        const userCards = Number(u?.cards_user) || Number(userCardsByUser?.[String(u?.id)]) || 0;
         const defi = Number(u?.cards_defi) || 0;
         const rare = Number(u?.cards_rare) || 0;
         const evenement = Number(u?.cards_evenement) || 0;
@@ -442,6 +442,7 @@ export function GlobalDashboard({
         const lastUniqueLabel = lastUniqueRaw && dayjs(lastUniqueRaw).isValid()
           ? dayjs(lastUniqueRaw).locale("fr").format("D MMM YYYY")
           : null;
+        const lastUniqueTs = lastUniqueRaw && dayjs(lastUniqueRaw).isValid() ? dayjs(lastUniqueRaw).valueOf() : 0;
         const totalCards = defi + rare + evenement + userCards;
         const score = userCards + defi * 2 + evenement * 3 + rare * 5;
         return {
@@ -452,6 +453,7 @@ export function GlobalDashboard({
           rare,
           evenement,
           lastLabel: lastUniqueLabel,
+          lastUniqueTs,
           totalCards,
           score,
           user: u,
@@ -459,6 +461,8 @@ export function GlobalDashboard({
       })
       .sort((a, b) => {
         if (a.score !== b.score) return b.score - a.score;
+        if (a.totalCards !== b.totalCards) return b.totalCards - a.totalCards;
+        if (a.lastUniqueTs !== b.lastUniqueTs) return b.lastUniqueTs - a.lastUniqueTs;
         return String(a.name).localeCompare(String(b.name));
       });
   }, [allUsers, users, userCardsByUser]);

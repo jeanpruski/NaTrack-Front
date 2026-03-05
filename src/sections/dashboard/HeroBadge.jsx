@@ -89,6 +89,11 @@ export function HeroBadge({
                   {cardsUnlockedCounts.evenement || 0}
                   <Newspaper size={16} className="text-slate-700 dark:text-slate-200" />
                 </span>
+                <span className="opacity-60">·</span>
+                <span className="inline-flex items-center gap-0.5">
+                  {cardsUnlockedCounts.user || 0}
+                  <User size={16} className="text-slate-700 dark:text-slate-200" />
+                </span>
               </span>
             )}
             {isBotUser && botCardType && (
