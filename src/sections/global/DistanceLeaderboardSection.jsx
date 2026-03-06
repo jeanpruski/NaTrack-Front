@@ -54,7 +54,7 @@ export function DistanceLeaderboardSection({
                       <button
                         key={row.id}
                         onClick={() => row.user && onSelectUser?.(row.user)}
-                        className={`grid grid-cols-[24px_minmax(140px,1.2fr)_3fr_90px] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900 ${
+                      className={`grid grid-cols-[24px_minmax(60px,1fr)_3.2fr_90px] items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900 ${
                           currentUserId && String(row.id) === String(currentUserId)
                             ? "border-emerald-200/70 bg-emerald-50/50 dark:border-emerald-500/40 dark:bg-emerald-900/10"
                             : "border-slate-200/60 bg-white/80 dark:border-slate-700/60 dark:bg-slate-900/40"
