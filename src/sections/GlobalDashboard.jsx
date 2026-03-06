@@ -9,6 +9,7 @@ import { buildMonthKeys } from "../utils/globalDashboard";
 import { NewsSection } from "./global/NewsSection";
 import { NotificationsSection } from "./global/NotificationsSection";
 import { PodiumSection } from "./global/PodiumSection";
+import { DistanceLeaderboardSection } from "./global/DistanceLeaderboardSection";
 import { PlayerCardsSection } from "./global/PlayerCardsSection";
 import { PullToRefreshOverlay } from "./global/PullToRefreshOverlay";
 import { RecentActivitiesSection } from "./global/RecentActivitiesSection";
@@ -471,6 +472,9 @@ export function GlobalDashboard({
     return showMoreCards ? rows : rows.slice(0, 3);
   }, [cardCountsByUser, showMoreCards]);
 
+  const showDistanceLeaderboard =
+    range === "month" || range === "3m" || String(range || "").startsWith("season:");
+
   const monthKeys = useMemo(() => buildMonthKeys(sessions), [sessions]);
   const sparklineMap = useMemo(() => {
     const map = new Map();
@@ -749,6 +753,16 @@ export function GlobalDashboard({
           currentUserId={currentUserId}
           onSelectUser={onSelectUser}
         />
+        {showDistanceLeaderboard && isAdmin && (
+          <DistanceLeaderboardSection
+            users={users}
+            totalsByUser={totalsByUser}
+            nfDecimal={nfDecimal}
+            currentUserId={currentUserId}
+            onSelectUser={onSelectUser}
+            rangeLabel={rangeLabel}
+          />
+        )}
         </div>
       </div>
     </div>
