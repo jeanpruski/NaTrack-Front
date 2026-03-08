@@ -106,6 +106,9 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [authTransition, setAuthTransition] = useState(false);
+  const [rollingRunSessions, setRollingRunSessions] = useState([]);
+  const [cardsPageSessions, setCardsPageSessions] = useState([]);
+  const [shoeProgress, setShoeProgress] = useState(null);
   const [editModalInitialTab, setEditModalInitialTab] = useState("options");
   const [showVictoryCardPreview, setShowVictoryCardPreview] = useState(false);
   const [victoryInfo, setVictoryInfo] = useState(null);
@@ -161,39 +164,55 @@ export default function App() {
   const likePendingTimersRef = useRef(new Map());
   const likePendingStartRef = useRef(new Map());
   const MIN_LIKE_SPINNER_MS = 450;
+  const rangeRefreshRef = useRef(false);
 
-  useEffect(() => {
-    let alive = true;
-    let delayTimer = null;
-    let fadeTimer = null;
-    const start = Date.now();
-    const startFade = () => {
-      if (!alive) return;
-      setLoadingPhase("fading");
-      fadeTimer = setTimeout(() => {
-        if (alive) setLoadingPhase("done");
-      }, 500);
-    };
-    (async () => {
-      try {
-        await refreshSessions({ shouldUpdate: () => alive });
-      } finally {
-        const elapsed = Date.now() - start;
-        const remaining = Math.max(1500 - elapsed, 0);
-        if (!alive) return;
-        if (remaining === 0) {
-          startFade();
-          return;
-        }
-        delayTimer = setTimeout(startFade, remaining);
+  const refreshRollingRunSessions = async ({ shouldUpdate } = {}) => {
+    try {
+      const from = dayjs().subtract(3, "month").format("YYYY-MM-DD");
+      const to = dayjs().format("YYYY-MM-DD");
+      const params = new URLSearchParams({ from, to, type: "run" });
+      const data = await apiGet(`/sessions?${params.toString()}`);
+      const normalized = (data || []).map((s) => normalizeSession(s));
+      if (shouldUpdate && !shouldUpdate()) return;
+      setRollingRunSessions(normalized);
+    } catch {
+      if (shouldUpdate && !shouldUpdate()) return;
+      setRollingRunSessions([]);
+    }
+  };
+
+  const refreshShoeProgress = async ({ shouldUpdate } = {}) => {
+    if (!isAuth || !authToken) return;
+    try {
+      const data = await apiGet("/me/shoe-progress", authToken);
+      if (shouldUpdate && !shouldUpdate()) return;
+      setShoeProgress(data || null);
+    } catch {
+      if (shouldUpdate && !shouldUpdate()) return;
+      setShoeProgress(null);
+    }
+  };
+
+  const refreshRangeSessions = async () => {
+    if (dashboardRefreshingRef.current) return;
+    dashboardRefreshingRef.current = true;
+    refreshSpinnerSinceRef.current = Date.now();
+    setDashboardRefreshing(true);
+    try {
+      await Promise.all([
+        refreshSessions({ from: rangeDates.from, to: rangeDates.to }),
+        refreshRollingRunSessions(),
+      ]);
+    } finally {
+      const elapsed = Date.now() - (refreshSpinnerSinceRef.current || 0);
+      const remaining = Math.max(1500 - elapsed, 0);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
       }
-    })();
-    return () => {
-      alive = false;
-      if (delayTimer) clearTimeout(delayTimer);
-      if (fadeTimer) clearTimeout(fadeTimer);
-    };
-  }, []);
+      setDashboardRefreshing(false);
+      dashboardRefreshingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     const initialRange = readFilterParams().range;
@@ -284,13 +303,15 @@ export default function App() {
     setDashboardRefreshing(true);
     try {
       const tasks = [
-        refreshSessions(),
+        refreshSessions({ from: rangeDates.from, to: rangeDates.to }),
+        refreshRollingRunSessions(),
         refreshUsers(),
         refreshNotifications(),
         refreshChallenge(),
         refreshSessionLikes(),
       ];
       if (includeNews) tasks.push(refreshNews());
+      tasks.push(refreshShoeProgress());
       await Promise.all(tasks);
     } finally {
       const elapsed = Date.now() - (refreshSpinnerSinceRef.current || 0);
@@ -595,6 +616,83 @@ export default function App() {
     }
     return dayjs(selectedSeasonRange.end_date).subtract(1, "day").format("YYYY-MM-DD");
   })();
+  const rangeDates = useMemo(() => {
+    const today = dayjs().format("YYYY-MM-DD");
+    if (range === "all") return { from: null, to: null };
+    if (range === "month") {
+      return {
+        from: dayjs().startOf("month").format("YYYY-MM-DD"),
+        to: dayjs().endOf("month").format("YYYY-MM-DD"),
+      };
+    }
+    if (range === "6m") {
+      return { from: dayjs().subtract(6, "month").format("YYYY-MM-DD"), to: today };
+    }
+    if (range === "3m") {
+      return { from: dayjs().subtract(3, "month").format("YYYY-MM-DD"), to: today };
+    }
+    if (String(range).startsWith("season:") && seasonStartTs !== null) {
+      return {
+        from: dayjs(seasonStartTs).format("YYYY-MM-DD"),
+        to: seasonEndTs ? dayjs(seasonEndTs).subtract(1, "day").format("YYYY-MM-DD") : today,
+      };
+    }
+    if (/^\\d{4}$/.test(range)) {
+      return { from: `${range}-01-01`, to: `${range}-12-31` };
+    }
+    return { from: null, to: null };
+  }, [range, seasonStartTs, seasonEndTs]);
+  const isDateInRange = (dateValue) => {
+    if (!dateValue) return false;
+    const { from, to } = rangeDates || {};
+    if (!from && !to) return true;
+    if (from && dateValue < from) return false;
+    if (to && dateValue > to) return false;
+    return true;
+  };
+
+  useEffect(() => {
+    let alive = true;
+    let delayTimer = null;
+    let fadeTimer = null;
+    const start = Date.now();
+    const startFade = () => {
+      if (!alive) return;
+      setLoadingPhase("fading");
+      fadeTimer = setTimeout(() => {
+        if (alive) setLoadingPhase("done");
+      }, 500);
+    };
+    (async () => {
+      try {
+        await refreshSessions({ shouldUpdate: () => alive, from: rangeDates.from, to: rangeDates.to });
+        await refreshRollingRunSessions({ shouldUpdate: () => alive });
+        await refreshShoeProgress({ shouldUpdate: () => alive });
+      } finally {
+        const elapsed = Date.now() - start;
+        const remaining = Math.max(1500 - elapsed, 0);
+        if (!alive) return;
+        if (remaining === 0) {
+          startFade();
+          return;
+        }
+        delayTimer = setTimeout(startFade, remaining);
+      }
+    })();
+    return () => {
+      alive = false;
+      if (delayTimer) clearTimeout(delayTimer);
+      if (fadeTimer) clearTimeout(fadeTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!rangeRefreshRef.current) {
+      rangeRefreshRef.current = true;
+      return;
+    }
+    refreshRangeSessions();
+  }, [rangeDates.from, rangeDates.to]);
   const rangeOptions = useMemo(() => {
     const seasonOpts = seasonsVisible.map((s) => ({
       key: `season:${s.season_number}`,
@@ -765,6 +863,34 @@ export default function App() {
     return globalPeriodSessions.filter((s) => normType(s.type) === mode);
   }, [globalPeriodSessions, mode]);
 
+  useEffect(() => {
+    if (!showCardsPage) return;
+    if (!activeSeasonInfo?.start_date) {
+      setCardsPageSessions([]);
+      return;
+    }
+    let alive = true;
+    const from = activeSeasonInfo.start_date;
+    const to = activeSeasonInfo.next_start_date
+      ? dayjs(activeSeasonInfo.next_start_date).subtract(1, "day").format("YYYY-MM-DD")
+      : dayjs().format("YYYY-MM-DD");
+    (async () => {
+      try {
+        const params = new URLSearchParams({ from, to });
+        const data = await apiGet(`/sessions?${params.toString()}`);
+        if (!alive) return;
+        const normalized = (data || []).map((s) => normalizeSession(s));
+        setCardsPageSessions(normalized);
+      } catch {
+        if (!alive) return;
+        setCardsPageSessions([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [showCardsPage, activeSeasonInfo?.start_date, activeSeasonInfo?.next_start_date]);
+
   const monthTotalsByUser = useMemo(() => {
     const map = {};
     globalShownSessions.forEach((s) => {
@@ -803,13 +929,11 @@ export default function App() {
   }, [derivedUsers, monthTotalsByUser]);
 
   const userRunningAvgById = useMemo(() => {
-    const cutoff = dayjs().subtract(3, "month").startOf("day").valueOf();
     const totals = new Map();
     const counts = new Map();
-    sessions.forEach((s) => {
+    rollingRunSessions.forEach((s) => {
       if (!s?.user_id) return;
       if (String(s.type || "").toLowerCase() !== "run") return;
-      if (dayjs(s.date).valueOf() < cutoff) return;
       const dist = Number(s.distance) || 0;
       totals.set(s.user_id, (totals.get(s.user_id) || 0) + dist);
       counts.set(s.user_id, (counts.get(s.user_id) || 0) + 1);
@@ -820,15 +944,13 @@ export default function App() {
       if (count > 0) avg.set(userId, totalDist / count / 1000);
     });
     return avg;
-  }, [sessions]);
+  }, [rollingRunSessions]);
 
   const userRunningMaxById = useMemo(() => {
-    const cutoff = dayjs().subtract(3, "month").startOf("day").valueOf();
     const maxById = new Map();
-    sessions.forEach((s) => {
+    rollingRunSessions.forEach((s) => {
       if (!s?.user_id) return;
       if (String(s.type || "").toLowerCase() !== "run") return;
-      if (dayjs(s.date).valueOf() < cutoff) return;
       const dist = Number(s.distance) || 0;
       const prev = maxById.get(s.user_id) || 0;
       if (dist > prev) maxById.set(s.user_id, dist);
@@ -838,7 +960,7 @@ export default function App() {
       if (dist > 0) maxKm.set(userId, dist / 1000);
     });
     return maxKm;
-  }, [sessions]);
+  }, [rollingRunSessions]);
 
   const selectedUserInfo = useMemo(() => {
     if (!selectedUser) return null;
@@ -1161,6 +1283,22 @@ export default function App() {
 
   const shoesLife = useMemo(() => {
     if (!shoesConfig) return null;
+    if (shoeProgress && shoeProgress.shoe_start_date) {
+      const usedMeters = Number(shoeProgress.used_m) || 0;
+      const used = Math.min(usedMeters, shoesConfig.targetMeters);
+      const remaining = Math.max(shoesConfig.targetMeters - usedMeters, 0);
+      const percent = shoesConfig.targetMeters
+        ? Math.min((usedMeters / shoesConfig.targetMeters) * 100, 100)
+        : 0;
+      return {
+        used,
+        remaining,
+        percent,
+        name: shoesConfig.name,
+        targetKm: shoesConfig.targetKm,
+        startDate: shoesConfig.startDate.format("YYYY-MM-DD"),
+      };
+    }
     let runMeters = 0;
     userSessions.forEach((s) => {
       if (normType(s.type) !== "run") return;
@@ -1180,7 +1318,7 @@ export default function App() {
       targetKm: shoesConfig.targetKm,
       startDate: shoesConfig.startDate.format("YYYY-MM-DD"),
     };
-  }, [userSessions, shoesConfig]);
+  }, [userSessions, shoesConfig, shoeProgress]);
 
   const shoesLifeByRange = useMemo(() => {
     return shoesLife;
@@ -1312,7 +1450,8 @@ export default function App() {
       const body = { id: payload.id, distance: payload.distance, date: payload.date, type: payload.type };
       const created = await apiJson("POST", basePath, body, authToken);
       const createdWithName = { ...created, user_name: selectedUser?.name };
-      setSessions((prev) => [...prev, normalizeSession(createdWithName)]);
+      const normalized = normalizeSession(createdWithName);
+      setSessions((prev) => (isDateInRange(normalized.date) ? [...prev, normalized] : prev));
       if (created?.challenge_completed && created?.challenge) {
         setVictoryInfo({
           botId: created.challenge.bot_id,
@@ -1324,6 +1463,8 @@ export default function App() {
       refreshNotifications();
       refreshChallenge();
       refreshCardResults();
+      refreshRollingRunSessions();
+      refreshShoeProgress();
     });
     setShowEditModal(false);
     showToast("Seance ajoutée");
@@ -1343,6 +1484,8 @@ export default function App() {
     await withBusy(async () => {
       await apiJson("DELETE", `${basePath}/${id}`, undefined, authToken);
       setSessions((prev) => prev.filter((s) => s.id !== id));
+      refreshRollingRunSessions();
+      refreshShoeProgress();
     });
     setShowEditModal(false);
     showToast("Seance supprimée");
@@ -1352,9 +1495,17 @@ export default function App() {
     const basePath = getSessionsBasePath();
     await withBusy(async () => {
       await apiJson("PUT", `${basePath}/${id}`, updated, authToken);
-      setSessions((prev) =>
-        prev.map((s) => (s.id === id ? normalizeSession({ ...s, ...updated }) : s))
-      );
+      setSessions((prev) => {
+        const next = prev.filter((s) => s.id !== id);
+        const existing = prev.find((s) => s.id === id) || {};
+        const merged = normalizeSession({ ...existing, ...updated });
+        if (isDateInRange(merged.date)) {
+          next.push(merged);
+        }
+        return next;
+      });
+      refreshRollingRunSessions();
+      refreshShoeProgress();
     });
     setShowEditModal(false);
     showToast("Seance modifiée");
@@ -1390,7 +1541,12 @@ export default function App() {
         const item = await apiJson("POST", basePath, body, authToken);
         created.push({ ...item, user_name: selectedUser?.name });
       }
-      if (created.length) setSessions((prev) => [...prev, ...created.map(normalizeSession)]);
+      if (created.length) {
+        const normalizedCreated = created.map(normalizeSession).filter((s) => isDateInRange(s.date));
+        if (normalizedCreated.length) setSessions((prev) => [...prev, ...normalizedCreated]);
+      }
+      refreshRollingRunSessions();
+      refreshShoeProgress();
       return created.length;
     });
 
@@ -1475,64 +1631,6 @@ export default function App() {
       evenementTotal: totals.evenement,
     };
   }, [cardResults, users, userCardResults, user?.id]);
-
-  const userCardsByUser = useMemo(() => {
-    const realUserIds = new Set((users || []).filter((u) => !u?.is_bot).map((u) => String(u.id)));
-    if (!realUserIds.size) return {};
-    const byDate = new Map();
-    (sessions || []).forEach((s) => {
-      if (!s?.user_id || !s?.date) return;
-      const userId = String(s.user_id);
-      if (!realUserIds.has(userId)) return;
-      const type = String(s.type || "").toLowerCase();
-      if (type !== "run") return;
-      const d = dayjs(s.date);
-      if (!d.isValid()) return;
-      const dateKey = d.format("YYYY-MM-DD");
-      const dist = Number(s.distance) || 0;
-      if (!byDate.has(dateKey)) byDate.set(dateKey, new Map());
-      const map = byDate.get(dateKey);
-      const prev = map.get(userId) || 0;
-      if (dist > prev) map.set(userId, dist);
-    });
-    const beatenByUser = new Map();
-    const getSet = (id) => {
-      if (!beatenByUser.has(id)) beatenByUser.set(id, new Set());
-      return beatenByUser.get(id);
-    };
-    byDate.forEach((dateMap) => {
-      const rows = Array.from(dateMap.entries())
-        .map(([userId, dist]) => ({ userId, dist }))
-        .sort((a, b) => {
-          if (a.dist !== b.dist) return a.dist - b.dist;
-          return String(a.userId).localeCompare(String(b.userId));
-        });
-      let i = 0;
-      const smallerIds = [];
-      while (i < rows.length) {
-        let j = i;
-        const dist = rows[i].dist;
-        while (j + 1 < rows.length && rows[j + 1].dist === dist) j += 1;
-        const groupIds = rows.slice(i, j + 1).map((r) => r.userId);
-        groupIds.forEach((id) => {
-          const set = getSet(id);
-          smallerIds.forEach((otherId) => {
-            if (otherId !== id) set.add(otherId);
-          });
-          groupIds.forEach((otherId) => {
-            if (otherId !== id) set.add(otherId);
-          });
-        });
-        smallerIds.push(...groupIds);
-        i = j + 1;
-      }
-    });
-    const totals = {};
-    beatenByUser.forEach((set, id) => {
-      totals[id] = set.size;
-    });
-    return totals;
-  }, [sessions, users]);
 
   useEffect(() => {
     if (!isAuth || checking || !authToken) return;
@@ -1961,7 +2059,7 @@ export default function App() {
               ) : showCardsPage ? (
                 <UserCardsPage
                   users={users}
-                  sessions={sessions}
+                  sessions={cardsPageSessions}
                   activeSeasonInfo={activeSeasonInfo}
                   nfDecimal={nfDecimal}
                   userRunningAvgById={userRunningAvgById}
@@ -2003,7 +2101,6 @@ export default function App() {
                   nfDecimal={nfDecimal}
                   onSelectUser={handleSelectUser}
                   currentUserId={user?.id || null}
-                  userCardsByUser={userCardsByUser}
                   sessionLikes={sessionLikes}
                   sessionLikePending={sessionLikePending}
                   onToggleSessionLike={toggleSessionLike}

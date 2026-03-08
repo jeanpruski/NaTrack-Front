@@ -28,7 +28,6 @@ export function GlobalDashboard({
   users,
   allUsers,
   totalsByUser,
-  userCardsByUser = {},
   sessions,
   nfDecimal,
   onSelectUser,
@@ -435,7 +434,7 @@ export function GlobalDashboard({
     return pool
       .filter((u) => !u?.is_bot)
       .map((u) => {
-        const userCards = Number(u?.cards_user) || Number(userCardsByUser?.[String(u?.id)]) || 0;
+        const userCards = Number(u?.cards_user) || 0;
         const defi = Number(u?.cards_defi) || 0;
         const rare = Number(u?.cards_rare) || 0;
         const evenement = Number(u?.cards_evenement) || 0;
@@ -466,7 +465,7 @@ export function GlobalDashboard({
         if (a.lastUniqueTs !== b.lastUniqueTs) return b.lastUniqueTs - a.lastUniqueTs;
         return String(a.name).localeCompare(String(b.name));
       });
-  }, [allUsers, users, userCardsByUser]);
+  }, [allUsers, users]);
   const cardCountsShown = useMemo(() => {
     const rows = cardCountsByUser.filter((u) => u.score > 0);
     return showMoreCards ? rows : rows.slice(0, 3);
