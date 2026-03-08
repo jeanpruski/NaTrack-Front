@@ -26,6 +26,7 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
   const [detailRows, setDetailRows] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErr, setDetailErr] = useState("");
+  const [detailPage, setDetailPage] = useState(1);
 
   const splitRow = (row) => {
     const rareCurrent = toNumber(row.rare_season_current_count);
@@ -189,6 +190,14 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
     }));
   }, [detailRows]);
 
+  const detailPageSize = 5;
+  const detailTotalPages = Math.max(1, Math.ceil(detailGrouped.length / detailPageSize));
+  const detailSafePage = Math.min(Math.max(1, detailPage), detailTotalPages);
+  const detailPaged = useMemo(() => {
+    const start = (detailSafePage - 1) * detailPageSize;
+    return detailGrouped.slice(start, start + detailPageSize);
+  }, [detailGrouped, detailSafePage]);
+
   const getCardClass = (row) => {
     const type = String(row?.type || "");
     const bucket = row?.season_bucket || "none";
@@ -225,6 +234,7 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
       setRows(Array.isArray(data?.rows) ? data.rows : []);
       setActiveSeasonNumber(data?.activeSeasonNumber ?? null);
       setPage(1);
+      setDetailPage(1);
       setFrom(data?.from || finalFrom || "");
       setTo(data?.to || finalTo || "");
       loadDetails(data?.from || finalFrom || "", data?.to || finalTo || "");
@@ -429,11 +439,11 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                     const stack = [
                       { key: "defiCurrent", count: split.defiCurrent, cls: "bg-rose-500/80" },
                       { key: "defiOther", count: split.defiOther, cls: "bg-rose-200/80" },
+                      { key: "defiNone", count: split.defiNone, cls: "bg-rose-100/70" },
                       { key: "rareCurrent", count: split.rareCurrent, cls: "bg-sky-500/80" },
                       { key: "rareOther", count: split.rareOther, cls: "bg-sky-200/80" },
-                      { key: "event", count: eventTotal, cls: "bg-amber-400/90" },
                       { key: "rareNone", count: split.rareNone, cls: "bg-sky-100/90" },
-                      { key: "defiNone", count: split.defiNone, cls: "bg-rose-100/70" },
+                      { key: "event", count: eventTotal, cls: "bg-amber-400/90" },
                     ].filter((s) => s.count > 0);
                     return (
                       <div key={row.stat_date} className="flex flex-col items-center gap-1">
@@ -533,6 +543,81 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+                  Détails des cartes distribuées (par jour / joueur)
+                </div>
+                <div className="text-xs text-slate-400 dark:text-slate-500">Saison en cours</div>
+              </div>
+              {detailErr && (
+                <div className="mt-2 rounded-xl bg-rose-100 px-3 py-2 text-sm text-rose-700 dark:bg-rose-900/40 dark:text-rose-200">
+                  {detailErr}
+                </div>
+              )}
+              {detailLoading ? (
+                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">Chargement…</div>
+              ) : detailGrouped.length === 0 ? (
+                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">Aucune carte sur la période.</div>
+              ) : (
+                <>
+                  <div className="mt-3 grid gap-3">
+                    {detailPaged.map((day) => (
+                      <div
+                        key={day.date}
+                        className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/40"
+                      >
+                        <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+                          {day.date}
+                        </div>
+                        <div className="mt-2 grid gap-2">
+                          {day.users.map((u) => (
+                            <div key={String(u.user_id)} className="flex flex-wrap items-center gap-2 text-sm">
+                              <span className="font-semibold text-slate-900 dark:text-slate-100">{u.user_name}</span>
+                              <div className="flex flex-wrap gap-2">
+                                {u.cards.map((card, idx) => (
+                                  <span
+                                    key={`${card.bot_id || "bot"}-${idx}`}
+                                    className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getCardClass(card)}`}
+                                    title={`${card.bot_name || "Carte"} · ${card.type}`}
+                                  >
+                                    {card.bot_name || "Carte"}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <div>
+                      Page {detailSafePage} / {detailTotalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDetailPage((p) => Math.max(1, p - 1))}
+                        disabled={detailSafePage <= 1}
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        Précédent
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailPage((p) => Math.min(detailTotalPages, p + 1))}
+                        disabled={detailSafePage >= detailTotalPages}
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        Suivant
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
