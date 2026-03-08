@@ -579,14 +579,19 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                               <span className="font-semibold text-slate-900 dark:text-slate-100">{u.user_name}</span>
                               <div className="flex flex-wrap gap-2">
                                 {u.cards.map((card, idx) => (
-                                  <span
-                                    key={`${card.bot_id || "bot"}-${idx}`}
-                                    className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getCardClass(card)}`}
-                                    title={`${card.bot_name || "Carte"} · ${card.type}`}
-                                  >
-                                    {card.bot_name || "Carte"}
-                                  </span>
-                                ))}
+                                <span
+                                  key={`${card.bot_id || "bot"}-${idx}`}
+                                  className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getCardClass(card)}`}
+                                  title={`${card.bot_name || "Carte"} · ${card.type}`}
+                                >
+                                  {card.bot_name || "Carte"}
+                                  {Number(card.target_distance_m) > 0 ? (
+                                    <span className="ml-1 text-[10px] font-normal opacity-80">
+                                      {Math.round(Number(card.target_distance_m) / 100) / 10} km
+                                    </span>
+                                  ) : null}
+                                </span>
+                              ))}
                               </div>
                             </div>
                           ))}
