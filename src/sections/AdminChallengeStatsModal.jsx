@@ -448,7 +448,7 @@ export function AdminChallengeStatsModal({ open, onClose, authToken }) {
                                 acc.push(
                                   <div
                                     key={seg.key}
-                                    className={`w-full ${seg.cls}`}
+                                    className={`w-full ${seg.cls} border-t border-black/70`}
                                     style={{ height: `${height * 100}%` }}
                                   />
                                 );
