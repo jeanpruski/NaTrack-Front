@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
-import { Bell, BellRing, Check, Medal, Newspaper, Sparkles, Swords } from "lucide-react";
+import { Check, Medal, Newspaper, Sparkles, Swords } from "lucide-react";
 import { InfoPopover } from "../../components/InfoPopover";
 import { Reveal } from "../../components/Reveal";
 import { UserHoloCard } from "../../components/UserHoloCard";
@@ -31,8 +31,41 @@ export function NotificationsSection({
   canCancelAny,
   onOpenMyOptions,
   nfDecimal,
+  hasCurrentCardOwned = false,
 }) {
-  if (!isAuth || !onOpenCards) return null;
+  const challengeTitle = (() => {
+    const title = cardNotifDetails?.title || `${cardBot?.name || "Un bot"} te défie !`;
+    return title.split(" – ")[0] || title;
+  })();
+  const showChallengeBanner = Boolean(hasUnreadNotif && showCardNotif && cardNotifDetails);
+  const toRgba = (hex, alpha) => {
+    if (!hex) return "";
+    const clean = String(hex).replace("#", "").trim();
+    if (![3, 6].includes(clean.length)) return "";
+    const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+    const num = Number.parseInt(full, 16);
+    if (Number.isNaN(num)) return "";
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+  const challengeBorderStyle = cardBot?.bot_border_color
+    ? { backgroundImage: `linear-gradient(135deg, ${cardBot.bot_border_color}, #000000)` }
+    : cardNotifDetails?.kind === "defi"
+      ? { backgroundImage: "linear-gradient(135deg, rgb(153, 41, 41), rgb(0, 0, 0))" }
+      : undefined;
+  const challengeInnerStyle = {
+    backgroundColor: "rgb(2 6 23 / 0.95)",
+    backgroundImage: cardBot?.bot_color
+      ? `linear-gradient(135deg, ${toRgba(cardBot.bot_color, 0.35)}, ${toRgba(cardBot.bot_color, 0.7)}, ${toRgba(cardBot.bot_color, 0.95)})`
+      : undefined,
+    "--holo-x": "50%",
+    "--holo-y": "50%",
+    "--spark-x": "50%",
+    "--spark-y": "50%",
+    "--spark-opacity": "0.6",
+  };
   const ensureDayName = (label) => {
     if (!label) return label;
     const weekdays = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
@@ -48,40 +81,12 @@ export function NotificationsSection({
     }
     return label;
   };
+  if (!isAuth || !onOpenCards) return null;
 
   return (
     <Reveal as="section">
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <div className="relative w-full">
-          <button
-            type="button"
-            disabled={!hasUnreadNotif}
-            onClick={() => {
-              if (!unreadNotifications.length) return;
-              onToggleNotifInfo();
-            }}
-            className={`relative w-full overflow-hidden rounded-2xl border-0 px-4 py-3 text-left text-slate-900 shadow-sm transition-colors duration-200 focus:outline-none focus-visible:ring-2 dark:text-slate-100 ${
-              hasUnreadNotif
-                ? "bg-gradient-to-l from-rose-400/60 to-transparent hover:ring-1 hover:ring-rose-300/70 focus-visible:ring-rose-300"
-                : "bg-gradient-to-l from-sky-400/60 to-transparent focus-visible:ring-sky-300 cursor-default"
-            }`}
-          >
-            <span
-              className={`pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 ${
-                hasUnreadNotif ? "hover:opacity-100 bg-rose-400/45" : "bg-sky-400/45"
-              }`}
-            />
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                {hasUnreadNotif ? "Notification" : "Pas de notification"}
-              </div>
-              {hasUnreadNotif ? (
-                <BellRing size={20} className="text-slate-900 dark:text-white" />
-              ) : (
-                <Bell size={20} className="text-slate-900 dark:text-white" />
-              )}
-            </div>
-          </button>
+      <div className="flex flex-col gap-3">
+        <div className="relative z-10 flex flex-col gap-3">
           <InfoPopover
             open={showNotifInfo}
             onClose={onCloseNotifInfo}
@@ -291,20 +296,146 @@ export function NotificationsSection({
                 document.body
               )
             : null}
-        </div>
 
-        <button
-          onClick={onOpenCards}
-          className="relative w-full overflow-hidden rounded-2xl border-0 bg-gradient-to-r from-emerald-300/60 to-transparent px-4 py-3 text-left text-slate-900 shadow-sm transition-colors duration-200 hover:ring-1 hover:ring-emerald-300/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:text-slate-100"
-        >
-          <span className="pointer-events-none absolute inset-0 z-0 bg-emerald-300/45 opacity-0 transition-opacity duration-300 hover:opacity-100" />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-              <Medal size={20} className="text-slate-900 dark:text-white" />
-            </div>
-            <img src="/nacards-logo.png" alt="NaCards" className="h-7 w-auto" />
+          <div className={`grid gap-3 ${showChallengeBanner ? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_170px]" : "grid-cols-1"}`}>
+            {showChallengeBanner && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!unreadNotifications.length) return;
+                  onToggleNotifInfo();
+                }}
+                className="relative z-0 w-full rounded-[28px] border-0 bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-2 text-left shadow-[0_12px_36px_rgba(0,0,0,0.32)] dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                style={challengeBorderStyle}
+              >
+                <div
+                  className="user-card-holo relative overflow-hidden rounded-[22px] p-[12px] text-slate-100"
+                  style={challengeInnerStyle}
+                >
+                  <span
+                    className={`absolute right-3 top-3 z-20 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${
+                      hasCurrentCardOwned
+                        ? "bg-slate-200/80 text-slate-800"
+                        : "bg-emerald-300/90 text-emerald-950"
+                    }`}
+                  >
+                    {hasCurrentCardOwned ? "DÉJÀ" : "NEW"}
+                  </span>
+                  {cardBot?.card_image && (
+                    <div
+                      className="absolute inset-0 z-0 bg-cover opacity-30 md:hidden"
+                      style={{ backgroundImage: `url(${cardBot.card_image})`, backgroundPosition: "top center" }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-emerald-300/10 via-sky-200/15 to-transparent opacity-100" />
+                  <div className="relative z-10 flex items-stretch gap-3">
+                    <div className="hidden w-[210px] shrink-0 sm:w-[280px] md:block">
+                      <div className="relative h-full w-full overflow-hidden rounded-[18px] bg-gradient-to-br from-slate-900 via-emerald-900/40 to-slate-900">
+                      {cardBot?.card_image ? (
+                        <div
+                          className="h-full w-full bg-cover bg-center"
+                          style={{ backgroundImage: `url(${cardBot.card_image})` }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-slate-300">
+                          CARTE
+                        </div>
+                      )}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 min-h-[36px] min-w-[36px] items-center justify-center rounded-full bg-white/10 text-slate-100">
+                          {cardNotifDetails?.kind === "rare" ? (
+                            <Sparkles size={18} />
+                          ) : cardNotifDetails?.isEvent ? (
+                            <Newspaper size={18} />
+                          ) : (
+                            <Swords size={18} />
+                          )}
+                        </div>
+                        <div className="text-base font-semibold text-slate-100 sm:text-lg">{challengeTitle}</div>
+                      </div>
+                      <ul className="mt-2 grid gap-2 text-xs sm:text-sm">
+                        {cardNotifDetails?.dueLabel && (
+                          <li className="inline-flex items-center gap-2 rounded-xl bg-white/10 p-[12px] text-slate-100">
+                            <Check size={14} className="shrink-0 text-emerald-400" />
+                            <span>
+                              {cardNotifDetails?.isEvent ? (
+                                <>
+                                  A réaliser <span className="font-semibold">aujourd&apos;hui</span>
+                                </>
+                              ) : (() => {
+                                const raw = String(cardNotifDetails.dueLabel || "");
+                                const cleaned = raw.replace(/\s*à\s*\d{1,2}(:\d{2}|h\d{2}).*$/i, "").trim();
+                                const withDay = ensureDayName(cleaned || cardNotifDetails.dueLabel);
+                                return (
+                                  <>
+                                    A réaliser au plus tard le <span className="font-semibold">{withDay}</span>
+                                    {cardNotifDetails?.dueIsEvent ? " (pour cause d'événement)" : ""}
+                                  </>
+                                );
+                              })()}
+                            </span>
+                          </li>
+                        )}
+                        <li className="inline-flex items-center gap-2 rounded-xl bg-white/10 p-[12px] text-slate-100">
+                          <Check size={14} className="shrink-0 text-emerald-400" />
+                          <span>
+                            En <span className="font-semibold">une seule</span> session
+                          </span>
+                        </li>
+                        <li className="inline-flex items-center gap-2 rounded-xl bg-white/10 p-[12px] text-slate-100">
+                          <Check size={14} className="shrink-0 text-emerald-400" />
+                          <span>
+                            Objectif :{" "}
+                            <span className="font-semibold">{cardNotifDetails?.objective || "Distance minimum"}</span>
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            )}
+            <button
+              onClick={onOpenCards}
+              className={`relative w-full overflow-hidden border-0 text-left transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                showChallengeBanner
+                  ? "rounded-[28px] bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.32)] dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)] md:h-full"
+                  : "rounded-2xl bg-gradient-to-r from-emerald-300/60 to-transparent px-4 py-3 text-slate-900 shadow-sm hover:ring-1 hover:ring-emerald-300/70 dark:text-slate-100"
+              }`}
+            >
+              {showChallengeBanner ? (
+                <div className="user-card-holo relative h-full overflow-hidden rounded-[22px] bg-slate-950/95 p-3 text-slate-100">
+                  <span className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-emerald-300/10 via-sky-200/15 to-transparent opacity-100" />
+                  <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1">
+                    <img
+                      src="/nacards-logo.png"
+                      alt="NaCards"
+                      className="h-9 w-auto drop-shadow-[0_8px_20px_rgba(16,185,129,0.45)]"
+                    />
+                    <div className="hidden text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300 md:block">
+                      Mes cartes
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <span className="pointer-events-none absolute inset-0 z-0 bg-emerald-300/45 opacity-0 transition-opacity duration-300 hover:opacity-100" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      <Medal size={20} className="text-slate-900 dark:text-white" />
+                    </div>
+                    <img src="/nacards-logo.png" alt="NaCards" className="h-7 w-auto" />
+                  </div>
+                </>
+              )}
+            </button>
           </div>
-        </button>
+        </div>
       </div>
     </Reveal>
   );

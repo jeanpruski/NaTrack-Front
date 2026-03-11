@@ -20,7 +20,7 @@ export function PlayerCardsSection({
               Cartes des joueurs
             </span>
           </h2>
-          {cardCountsByUser.filter((u) => u.score > 0).length > 3 && (
+          {cardCountsByUser.length > 3 && (
             <div className="flex w-full justify-end md:w-auto md:justify-start">
               <button
                 type="button"

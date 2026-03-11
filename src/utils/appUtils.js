@@ -1,7 +1,12 @@
 import dayjs from "dayjs";
 import { capFirst } from "./strings";
 
-export const normType = (t) => ((t || "swim").toLowerCase() === "run" ? "run" : "swim");
+export const normType = (t) => {
+  const raw = String(t || "").trim().toLowerCase();
+  if (["run", "running", "course", "footing", "jogging"].includes(raw)) return "run";
+  if (["swim", "swimming", "natation", "nage"].includes(raw)) return "swim";
+  return "swim";
+};
 export const pluralize = (n, word) => `${n} ${word}${n > 1 ? "s" : ""}`;
 
 export const formatDistance = (meters, nf) => {

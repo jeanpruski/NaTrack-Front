@@ -14,6 +14,7 @@ import { GlobalDashboard } from "./sections/GlobalDashboard";
 import { NewsArchive } from "./sections/NewsArchive";
 import { LoadingScreen } from "./sections/LoadingScreen";
 import { BusyOverlay } from "./sections/BusyOverlay";
+import { PullToRefreshOverlay } from "./sections/global/PullToRefreshOverlay";
 import { UserCardsPage } from "./sections/UserCardsPage";
 import { Toast } from "./components/Toast";
 import { InfoPopover } from "./components/InfoPopover";
@@ -148,7 +149,9 @@ export default function App() {
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [mode, setMode] = useState(() => readFilterParams().mode || "run");   // all | swim | run
-  const [range, setRange] = useState(() => readFilterParams().range || getInitialRange()); // all | month | 6m | 3m | 2026 | 2025
+  const initialRangeValue = readFilterParams().range || getInitialRange();
+  const [range, setRange] = useState(() => initialRangeValue); // all | month | 6m | 3m | 2026 | 2025
+  const [appliedRange, setAppliedRange] = useState(() => initialRangeValue);
   const [routeState, setRouteState] = useState(readRouteState);
   const [userCardOpen, setUserCardOpen] = useState(readCardParam);
   const [showNewsArchive, setShowNewsArchive] = useState(false);
@@ -198,9 +201,16 @@ export default function App() {
     dashboardRefreshingRef.current = true;
     refreshSpinnerSinceRef.current = Date.now();
     setDashboardRefreshing(true);
+    const targetRange = range;
+    const targetDates = fetchRangeDates;
     try {
       await Promise.all([
-        refreshSessions({ from: rangeDates.from, to: rangeDates.to }),
+        refreshSessions({
+          from: targetDates.from,
+          to: targetDates.to,
+          basePath: sessionsFetchConfig.basePath,
+          userId: sessionsFetchConfig.userId,
+        }),
         refreshRollingRunSessions(),
       ]);
     } finally {
@@ -209,6 +219,7 @@ export default function App() {
       if (remaining > 0) {
         await new Promise((resolve) => setTimeout(resolve, remaining));
       }
+      setAppliedRange(targetRange);
       setDashboardRefreshing(false);
       dashboardRefreshingRef.current = false;
     }
@@ -303,7 +314,12 @@ export default function App() {
     setDashboardRefreshing(true);
     try {
       const tasks = [
-        refreshSessions({ from: rangeDates.from, to: rangeDates.to }),
+        refreshSessions({
+          from: fetchRangeDates.from,
+          to: fetchRangeDates.to,
+          basePath: sessionsFetchConfig.basePath,
+          userId: sessionsFetchConfig.userId,
+        }),
         refreshRollingRunSessions(),
         refreshUsers(),
         refreshNotifications(),
@@ -319,6 +335,7 @@ export default function App() {
       if (remaining > 0) {
         await new Promise((resolve) => setTimeout(resolve, remaining));
       }
+      setAppliedRange(range);
       setDashboardRefreshing(false);
       dashboardRefreshingRef.current = false;
     }
@@ -599,15 +616,22 @@ export default function App() {
     });
     return map;
   }, [seasonsSortedAsc]);
-  const selectedSeasonKey =
-    String(range || "").startsWith("season:") ? String(range).split(":")[1] : null;
-  const selectedSeasonRange = selectedSeasonKey ? seasonRanges.get(String(selectedSeasonKey)) : null;
-  const seasonStartTs = selectedSeasonRange?.start_date
-    ? dayjs(selectedSeasonRange.start_date).startOf("day").valueOf()
-    : null;
-  const seasonEndTs = selectedSeasonRange?.end_date
-    ? dayjs(selectedSeasonRange.end_date).startOf("day").valueOf()
-    : null;
+  const getSeasonBounds = (rangeValue) => {
+    const seasonKey =
+      String(rangeValue || "").startsWith("season:") ? String(rangeValue).split(":")[1] : null;
+    const seasonRange = seasonKey ? seasonRanges.get(String(seasonKey)) : null;
+    const startTs = seasonRange?.start_date
+      ? dayjs(seasonRange.start_date).startOf("day").valueOf()
+      : null;
+    const endTs = seasonRange?.end_date
+      ? dayjs(seasonRange.end_date).startOf("day").valueOf()
+      : null;
+    return { seasonRange, startTs, endTs };
+  };
+  const { seasonRange: selectedSeasonRange, startTs: seasonStartTs, endTs: seasonEndTs } = useMemo(
+    () => getSeasonBounds(appliedRange),
+    [appliedRange, seasonRanges]
+  );
   const seasonCalendarStartDate = selectedSeasonRange?.start_date || null;
   const seasonCalendarEndDate = (() => {
     if (!selectedSeasonRange?.start_date) return null;
@@ -616,40 +640,55 @@ export default function App() {
     }
     return dayjs(selectedSeasonRange.end_date).subtract(1, "day").format("YYYY-MM-DD");
   })();
-  const rangeDates = useMemo(() => {
+  const getRangeDates = (rangeValue) => {
     const today = dayjs().format("YYYY-MM-DD");
-    if (range === "all") return { from: null, to: null };
-    if (range === "month") {
+    if (rangeValue === "all") return { from: null, to: null };
+    if (rangeValue === "month") {
       return {
         from: dayjs().startOf("month").format("YYYY-MM-DD"),
         to: dayjs().endOf("month").format("YYYY-MM-DD"),
       };
     }
-    if (range === "6m") {
+    if (rangeValue === "6m") {
       return { from: dayjs().subtract(6, "month").format("YYYY-MM-DD"), to: today };
     }
-    if (range === "3m") {
+    if (rangeValue === "3m") {
       return { from: dayjs().subtract(3, "month").format("YYYY-MM-DD"), to: today };
     }
-    if (String(range).startsWith("season:") && seasonStartTs !== null) {
+    const { startTs, endTs } = getSeasonBounds(rangeValue);
+    if (String(rangeValue).startsWith("season:") && startTs !== null) {
       return {
-        from: dayjs(seasonStartTs).format("YYYY-MM-DD"),
-        to: seasonEndTs ? dayjs(seasonEndTs).subtract(1, "day").format("YYYY-MM-DD") : today,
+        from: dayjs(startTs).format("YYYY-MM-DD"),
+        to: endTs ? dayjs(endTs).subtract(1, "day").format("YYYY-MM-DD") : today,
       };
     }
-    if (/^\\d{4}$/.test(range)) {
-      return { from: `${range}-01-01`, to: `${range}-12-31` };
+    if (/^\d{4}$/.test(rangeValue)) {
+      return { from: `${rangeValue}-01-01`, to: `${rangeValue}-12-31` };
     }
     return { from: null, to: null };
-  }, [range, seasonStartTs, seasonEndTs]);
+  };
+  const fetchRangeDates = useMemo(() => getRangeDates(range), [range, seasonRanges]);
+  const displayRangeDates = useMemo(() => getRangeDates(appliedRange), [appliedRange, seasonRanges]);
   const isDateInRange = (dateValue) => {
     if (!dateValue) return false;
-    const { from, to } = rangeDates || {};
+    const { from, to } = displayRangeDates || {};
     if (!from && !to) return true;
     if (from && dateValue < from) return false;
     if (to && dateValue > to) return false;
     return true;
   };
+
+  const sessionsFetchConfig = useMemo(() => {
+    if (selectedUser?.id) {
+      const selectedId = String(selectedUser.id);
+      const currentId = user?.id ? String(user.id) : null;
+      if (isAuth && currentId && selectedId === currentId) {
+        return { basePath: "/me/sessions", userId: null };
+      }
+      return { basePath: `/users/${selectedId}/sessions/public`, userId: null };
+    }
+    return { basePath: "/sessions", userId: null };
+  }, [selectedUser?.id, isAuth, user?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -665,7 +704,13 @@ export default function App() {
     };
     (async () => {
       try {
-        await refreshSessions({ shouldUpdate: () => alive, from: rangeDates.from, to: rangeDates.to });
+        await refreshSessions({
+          shouldUpdate: () => alive,
+          from: fetchRangeDates.from,
+          to: fetchRangeDates.to,
+          basePath: sessionsFetchConfig.basePath,
+          userId: sessionsFetchConfig.userId,
+        });
         await refreshRollingRunSessions({ shouldUpdate: () => alive });
         await refreshShoeProgress({ shouldUpdate: () => alive });
       } finally {
@@ -692,7 +737,7 @@ export default function App() {
       return;
     }
     refreshRangeSessions();
-  }, [rangeDates.from, rangeDates.to]);
+  }, [fetchRangeDates.from, fetchRangeDates.to, sessionsFetchConfig.basePath, sessionsFetchConfig.userId]);
   const rangeOptions = useMemo(() => {
     const seasonOpts = seasonsVisible.map((s) => ({
       key: `season:${s.season_number}`,
@@ -723,20 +768,20 @@ export default function App() {
     }
     return `Saison ${selectedSeasonRange.season_number} (${start} au ...)`;
   })();
-  const isSeasonRange = String(range).startsWith("season:");
+  const isSeasonRange = String(appliedRange).startsWith("season:");
   const rangeLabel =
-    range === "all"
+    appliedRange === "all"
       ? "Tout l'historique"
-      : range === "month"
+      : appliedRange === "month"
         ? "Ce mois-ci"
-        : range === "3m"
+        : appliedRange === "3m"
           ? "Les 3 derniers mois"
-          : range === "6m"
+          : appliedRange === "6m"
             ? "Les 6 derniers mois"
             : isSeasonRange
               ? seasonRangeLabel || seasonLabel
-              : /^\d{4}$/.test(range)
-                ? `L'annee ${range}`
+              : /^\d{4}$/.test(appliedRange)
+                ? `L'annee ${appliedRange}`
                 : "Cette periode";
   const isAdmin = String(user?.role || "").toLowerCase() === "admin";
 
@@ -834,19 +879,19 @@ export default function App() {
   }, [sessions, selectedUser]);
 
   const globalPeriodSessions = useMemo(() => {
-    if (range === "all") return sessions;
+    if (appliedRange === "all") return sessions;
 
     const now = dayjs();
-    if (range === "month") {
+    if (appliedRange === "month") {
       return sessions.filter((s) => dayjs(s.date).format("YYYY-MM") === monthKey);
     }
-    if (range === "6m") {
+    if (appliedRange === "6m") {
       return sessions.filter((s) => dayjs(s.date).isAfter(now.subtract(6, "month")));
     }
-    if (range === "3m") {
+    if (appliedRange === "3m") {
       return sessions.filter((s) => dayjs(s.date).isAfter(now.subtract(3, "month")));
     }
-    if (String(range).startsWith("season:") && seasonStartTs !== null) {
+    if (String(appliedRange).startsWith("season:") && seasonStartTs !== null) {
       return sessions.filter((s) => {
         const ts = dayjs(s.date).startOf("day").valueOf();
         if (ts < seasonStartTs) return false;
@@ -855,8 +900,8 @@ export default function App() {
       });
     }
 
-    return sessions.filter((s) => dayjs(s.date).format("YYYY") === range);
-  }, [sessions, range, monthKey, seasonStartTs, seasonEndTs]);
+    return sessions.filter((s) => dayjs(s.date).format("YYYY") === appliedRange);
+  }, [sessions, appliedRange, monthKey, seasonStartTs, seasonEndTs]);
 
   const globalShownSessions = useMemo(() => {
     if (mode === "all") return globalPeriodSessions;
@@ -1105,19 +1150,19 @@ export default function App() {
 
   /* ===== Filtre période ===== */
   const periodSessions = useMemo(() => {
-    if (range === "all") return userSessions;
+    if (appliedRange === "all") return userSessions;
 
     const now = dayjs();
-    if (range === "month") {
+    if (appliedRange === "month") {
       return userSessions.filter((s) => dayjs(s.date).format("YYYY-MM") === monthKey);
     }
-    if (range === "6m") {
+    if (appliedRange === "6m") {
       return userSessions.filter((s) => dayjs(s.date).isAfter(now.subtract(6, "month")));
     }
-    if (range === "3m") {
+    if (appliedRange === "3m") {
       return userSessions.filter((s) => dayjs(s.date).isAfter(now.subtract(3, "month")));
     }
-    if (String(range).startsWith("season:") && seasonStartTs !== null) {
+    if (String(appliedRange).startsWith("season:") && seasonStartTs !== null) {
       return userSessions.filter((s) => {
         const ts = dayjs(s.date).startOf("day").valueOf();
         if (ts < seasonStartTs) return false;
@@ -1126,8 +1171,8 @@ export default function App() {
       });
     }
 
-    return userSessions.filter((s) => dayjs(s.date).format("YYYY") === range);
-  }, [userSessions, range, seasonStartTs, seasonEndTs]);
+    return userSessions.filter((s) => dayjs(s.date).format("YYYY") === appliedRange);
+  }, [userSessions, appliedRange, seasonStartTs, seasonEndTs]);
 
   /* ===== Filtre sport ===== */
   const shownSessions = useMemo(() => {
@@ -1373,8 +1418,8 @@ export default function App() {
     };
   }, [shownSessions]);
 
-  const showCompareInline = range === "3m" || range === "6m";
-  const showCompareAbove = range === "all";
+  const showCompareInline = appliedRange === "3m" || appliedRange === "6m";
+  const showCompareAbove = appliedRange === "all";
   const compareTotalWinner =
     monthCompare.currentTotal === monthCompare.lastTotal
       ? "tie"
@@ -1574,7 +1619,7 @@ export default function App() {
     showToast("Export terminé");
   };
 
-  const showMonthCardsOnlyWhenAllRange = range === "all";
+  const showMonthCardsOnlyWhenAllRange = appliedRange === "all";
   const showMonthlyChart = range !== "month" && !isSeasonRange;
   const hasSessions = shownSessions.length > 0;
   const isGlobalView = !selectedUser;
@@ -1787,6 +1832,7 @@ export default function App() {
           <LoadingScreen loadingPhase="loading" forceLoading />
         </div>
       )}
+      {!isGlobalView && <PullToRefreshOverlay show={dashboardRefreshing} />}
       <div className="relative z-10">
         <AppHeader
           range={range}
@@ -2092,7 +2138,7 @@ export default function App() {
                   rangeLabel={rangeLabel}
                   modeLabel={modeLabel}
                   mode={mode}
-                  range={range}
+                  range={appliedRange}
                   activeSeasonNumber={activeSeasonInfo?.season_number ?? null}
                   users={globalUsers}
                   allUsers={usersForRouting}
@@ -2136,13 +2182,16 @@ export default function App() {
                   newsLoading={newsLoading}
                   newsError={newsError}
                   onOpenMyOptions={handleOpenMyOptions}
+                  cardResults={cardResults}
+                  userCardResults={userCardResults}
+                  authToken={authToken}
                 />
               )
             ) : (
                 <Dashboard
                   hasSessions={hasSessions}
                   mode={mode}
-                  range={range}
+                  range={appliedRange}
                   modeLabel={modeLabel}
                   rangeLabel={rangeLabel}
                   userName={headerTitle}

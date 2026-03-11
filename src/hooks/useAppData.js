@@ -18,14 +18,17 @@ export function useAppData({ authToken, isAuth, setError }) {
   const [cardResults, setCardResults] = useState([]);
   const [userCardResults, setUserCardResults] = useState([]);
 
-  const refreshSessions = async ({ shouldUpdate, from, to, type } = {}) => {
+  const refreshSessions = async ({ shouldUpdate, from, to, type, userId, basePath } = {}) => {
     try {
       const params = new URLSearchParams();
       if (from) params.set("from", from);
       if (to) params.set("to", to);
       if (type) params.set("type", type);
+      if (userId) params.set("user_id", userId);
       const qs = params.toString();
-      const data = await apiGet(qs ? `/sessions?${qs}` : "/sessions");
+      const endpoint = basePath || "/sessions";
+      const shouldSendAuth = endpoint.startsWith("/me/") || endpoint.startsWith("/users/") && !endpoint.includes("/public");
+      const data = await apiGet(qs ? `${endpoint}?${qs}` : endpoint, shouldSendAuth ? authToken : undefined);
       const normalized = (data || []).map((s) => normalizeSession(s));
       if (shouldUpdate && !shouldUpdate()) return;
       setSessions(normalized);

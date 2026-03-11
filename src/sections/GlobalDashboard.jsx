@@ -6,6 +6,7 @@ import { Reveal } from "../components/Reveal";
 import { RefreshCw } from "lucide-react";
 import { formatKmFixed } from "../utils/appUtils";
 import { buildMonthKeys } from "../utils/globalDashboard";
+import { apiGet } from "../utils/api";
 import { NewsSection } from "./global/NewsSection";
 import { NotificationsSection } from "./global/NotificationsSection";
 import { PodiumSection } from "./global/PodiumSection";
@@ -57,6 +58,9 @@ export function GlobalDashboard({
   newsLoading = false,
   newsError = "",
   onOpenMyOptions,
+  cardResults = [],
+  userCardResults = [],
+  authToken = "",
   isRefreshing = false,
   pullActive = false,
   pullDistance = 0,
@@ -70,6 +74,7 @@ export function GlobalDashboard({
   const toggleShowMoreCards = () => onToggleShowMoreCards?.(!showMoreCards);
   const [notifAnchorRect] = useState(null);
   const [adminNotifOverride, setAdminNotifOverride] = useState(null);
+  const [userCardCountsById, setUserCardCountsById] = useState({});
   const sessionLikesSet = useMemo(() => {
     if (sessionLikes instanceof Set) return sessionLikes;
     return new Set(sessionLikes || []);
@@ -431,13 +436,35 @@ export function GlobalDashboard({
   }, [totals, showMorePodium]);
   const cardCountsByUser = useMemo(() => {
     const pool = (allUsers && allUsers.length ? allUsers : users) || [];
+    const currentUserKey =
+      currentUserId !== null && currentUserId !== undefined ? String(currentUserId) : null;
+    const currentUserCardsFromResults = (() => {
+      if (!currentUserKey) return 0;
+      const set = new Set();
+      (userCardResults || []).forEach((r) => {
+        const targetId = r?.target_user_id;
+        if (targetId === null || targetId === undefined) return;
+        const targetKey = String(targetId);
+        if (targetKey === currentUserKey) return;
+        set.add(targetKey);
+      });
+      return set.size;
+    })();
     return pool
       .filter((u) => !u?.is_bot)
       .map((u) => {
-        const userCards = Number(u?.cards_user) || 0;
-        const defi = Number(u?.cards_defi) || 0;
-        const rare = Number(u?.cards_rare) || 0;
-        const evenement = Number(u?.cards_evenement) || 0;
+        const userKey = u?.id !== null && u?.id !== undefined ? String(u.id) : null;
+        const userCardsApi = Number(u?.cards_user) || 0;
+        const override = userKey ? userCardCountsById[userKey] : null;
+        const userCardsRaw = override?.user !== undefined ? Number(override.user) : userCardsApi;
+        const userCards =
+          currentUserKey && userKey === currentUserKey
+            ? Math.max(userCardsRaw, currentUserCardsFromResults)
+            : userCardsRaw;
+        const defi = override?.defi !== undefined ? Number(override.defi) || 0 : Number(u?.cards_defi) || 0;
+        const rare = override?.rare !== undefined ? Number(override.rare) || 0 : Number(u?.cards_rare) || 0;
+        const evenement =
+          override?.evenement !== undefined ? Number(override.evenement) || 0 : Number(u?.cards_evenement) || 0;
         const lastUniqueRaw = u?.cards_last_unique_at || null;
         const lastUniqueLabel = lastUniqueRaw && dayjs(lastUniqueRaw).isValid()
           ? dayjs(lastUniqueRaw).locale("fr").format("D MMM YYYY")
@@ -465,9 +492,45 @@ export function GlobalDashboard({
         if (a.lastUniqueTs !== b.lastUniqueTs) return b.lastUniqueTs - a.lastUniqueTs;
         return String(a.name).localeCompare(String(b.name));
       });
-  }, [allUsers, users]);
+  }, [allUsers, users, currentUserId, userCardResults, userCardCountsById]);
+
+  useEffect(() => {
+    if (!authToken) {
+      setUserCardCountsById({});
+      return;
+    }
+    const pool = (allUsers && allUsers.length ? allUsers : users) || [];
+    const targets = pool.filter((u) => u?.id && !u?.is_bot);
+    if (!targets.length) {
+      setUserCardCountsById({});
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const entries = await Promise.all(
+        targets.map(async (u) => {
+          try {
+            const data = await apiGet(`/users/${u.id}/card-results-counts`, authToken);
+            return [String(u.id), data || null];
+          } catch {
+            return [String(u.id), null];
+          }
+        })
+      );
+      if (!alive) return;
+      const next = {};
+      entries.forEach(([id, data]) => {
+        if (!data) return;
+        next[id] = data;
+      });
+      setUserCardCountsById(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [authToken, allUsers, users]);
   const cardCountsShown = useMemo(() => {
-    const rows = cardCountsByUser.filter((u) => u.score > 0);
+    const rows = cardCountsByUser;
     return showMoreCards ? rows : rows.slice(0, 3);
   }, [cardCountsByUser, showMoreCards]);
 
@@ -508,6 +571,13 @@ export function GlobalDashboard({
     cardNotification?.meta?.bot_id
       ? fullUsers.find((u) => String(u.id) === String(cardNotification.meta.bot_id))
       : null;
+  const hasCurrentCardOwned = useMemo(() => {
+    if (!cardBot?.id) return false;
+    return (cardResults || []).some((r) => {
+      const botId = r?.bot_id ?? r?.botId ?? null;
+      return botId !== null && String(botId) === String(cardBot.id);
+    });
+  }, [cardResults, cardBot]);
   const botRankInfo = useMemo(() => {
     if (!cardBot) return null;
     const bots = fullUsers
@@ -562,6 +632,7 @@ export function GlobalDashboard({
     };
     let botName = cardBot?.name || activeChallenge?.bot_name || "Un bot";
     let distanceLabel = null;
+    let distanceKm = null;
     let dueLabel = null;
     let dueTs = null;
     let dueIsEvent = false;
@@ -569,6 +640,7 @@ export function GlobalDashboard({
       botName = challengeMatch[1] || botName;
       const parsed = parseDistance(challengeMatch[2]);
       distanceLabel = parsed.label;
+      distanceKm = parsed.value;
       const rawDue = challengeMatch[3] || null;
       const parsedDue = rawDue ? dayjs(rawDue) : null;
       if (parsedDue && parsedDue.isValid()) {
@@ -581,10 +653,12 @@ export function GlobalDashboard({
     if (eventMatch) {
       const parsed = parseDistance(eventMatch[1]);
       distanceLabel = parsed.label;
+      distanceKm = parsed.value;
       botName = cardBot?.name || eventMatch[2] || botName;
     }
     if (!distanceLabel && Number.isFinite(activeChallenge?.target_distance_m)) {
-      distanceLabel = formatKmFixed(Number(activeChallenge.target_distance_m) / 1000);
+      distanceKm = Number(activeChallenge.target_distance_m) / 1000;
+      distanceLabel = formatKmFixed(distanceKm);
     }
     if (!isEvent && (eventNotification || upcomingEventBot)) {
       const eventDateValue = (eventNotification?.event_date || eventNotification?.created_at || upcomingEventBot?.user?.bot_event_date || "");
@@ -622,13 +696,27 @@ export function GlobalDashboard({
         ? `${botName} te défie ! – ${distanceLabel} ${distanceSuffix}`
         : `${botName} te défie !`);
     const objective = distanceLabel ? `${distanceLabel} km minimum` : "Distance minimum";
+    const dueAtTs = (() => {
+      if (isEvent) return dayjs().endOf("day").valueOf();
+      if (activeChallenge?.due_at) {
+        const dueAt = dayjs(activeChallenge.due_at);
+        if (dueAt.isValid()) return dueAt.valueOf();
+      }
+      if (Number.isFinite(dueTs)) return dayjs(dueTs).endOf("day").valueOf();
+      return null;
+    })();
+    const dueDateLabel = isEvent ? formatEventDate(dayjs().format("YYYY-MM-DD")) : dueLabel;
     return {
       isEvent,
       kind,
       title,
       objective,
+      distanceLabel,
+      distanceKm,
       dueLabel: isEvent ? "aujourd'hui" : dueLabel,
       dueIsEvent,
+      dueDateLabel,
+      dueAtTs,
     };
   }, [cardNotification, cardBot, activeChallenge]);
   const showCardNotif = !!cardNotification && cardBot;
@@ -707,6 +795,7 @@ export function GlobalDashboard({
           canCancelAny={canCancelAny}
           onOpenMyOptions={onOpenMyOptions}
           nfDecimal={nfDecimal}
+          hasCurrentCardOwned={hasCurrentCardOwned}
         />
         <RecentActivitiesSection
           showRecentActivityCard={showRecentActivityCard}
