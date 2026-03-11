@@ -748,6 +748,8 @@ export function GlobalDashboard({
     if (!unreadNotifications.length) return;
     setShowNotifInfo((v) => !v);
   };
+  const showChallengeBanner = Boolean(hasUnreadNotif && showCardNotif && cardNotifDetails);
+  const showCardsShortcut = Boolean(isAuth && onOpenCards);
   return (
     <div className="relative grid gap-4 px-4 xl:px-8 pt-4 md:pt-4 xl:pt-0 pb-8">
       <PullToRefreshOverlay show={showPull} />
@@ -766,37 +768,76 @@ export function GlobalDashboard({
         className={`transition-[filter] duration-500 ease-out ${showPull ? "blur-[2px]" : "blur-0"}`}
       >
         <div className="grid gap-4">
-        <NotificationsSection
-          isAuth={isAuth}
-          onOpenCards={onOpenCards}
-          hasUnreadNotif={hasUnreadNotif}
-          unreadNotifications={unreadNotifications}
-          showNotifInfo={showNotifInfo}
-          onToggleNotifInfo={handleToggleNotifInfo}
-          onCloseNotifInfo={() => {
-            setShowNotifInfo(false);
-            setAdminNotifOverride(null);
-            setShowCardPreview(false);
-          }}
-          showCardNotif={showCardNotif}
-          latestUnreadNotification={latestUnreadNotification}
-          notificationsLoading={notificationsLoading}
-          notificationsError={notificationsError}
-          cardNotifDetails={cardNotifDetails}
-          cardBot={cardBot}
-          botRankInfo={botRankInfo}
-          openCardPreview={openCardPreview}
-          showCardPreview={showCardPreview}
-          onCloseCardPreview={() => setShowCardPreview(false)}
-          cardNotification={cardNotification}
-          activeChallenge={activeChallenge}
-          getRemainingDays={getRemainingDays}
-          onCancelChallenge={onCancelChallenge}
-          canCancelAny={canCancelAny}
-          onOpenMyOptions={onOpenMyOptions}
-          nfDecimal={nfDecimal}
-          hasCurrentCardOwned={hasCurrentCardOwned}
-        />
+        {showChallengeBanner ? (
+          <NotificationsSection
+            isAuth={isAuth}
+            onOpenCards={onOpenCards}
+            hasUnreadNotif={hasUnreadNotif}
+            unreadNotifications={unreadNotifications}
+            showNotifInfo={showNotifInfo}
+            onToggleNotifInfo={handleToggleNotifInfo}
+            onCloseNotifInfo={() => {
+              setShowNotifInfo(false);
+              setAdminNotifOverride(null);
+              setShowCardPreview(false);
+            }}
+            showCardNotif={showCardNotif}
+            latestUnreadNotification={latestUnreadNotification}
+            notificationsLoading={notificationsLoading}
+            notificationsError={notificationsError}
+            cardNotifDetails={cardNotifDetails}
+            cardBot={cardBot}
+            botRankInfo={botRankInfo}
+            openCardPreview={openCardPreview}
+            showCardPreview={showCardPreview}
+            onCloseCardPreview={() => setShowCardPreview(false)}
+            cardNotification={cardNotification}
+            activeChallenge={activeChallenge}
+            getRemainingDays={getRemainingDays}
+            onCancelChallenge={onCancelChallenge}
+            canCancelAny={canCancelAny}
+            onOpenMyOptions={onOpenMyOptions}
+            nfDecimal={nfDecimal}
+            hasCurrentCardOwned={hasCurrentCardOwned}
+          />
+        ) : (
+          <div className={`grid gap-3 ${showCardsShortcut ? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_170px]" : "grid-cols-1"}`}>
+            <div className={showCardsShortcut ? "hidden md:block" : "block"}>
+              <NewsSection
+                onOpenNewsArchive={onOpenNewsArchive}
+                newsItems={newsItems}
+                newsLoading={newsLoading}
+                newsError={newsError}
+                latestNews={latestNews}
+                newsImageReadyMap={newsImageReadyMap}
+                formatEventDate={formatEventDate}
+              />
+            </div>
+            {showCardsShortcut && (
+              <Reveal as="div" className="md:h-full">
+                <button
+                  type="button"
+                  onClick={onOpenCards}
+                  className="relative h-full w-full overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-[5px] text-left opacity-90 shadow-[0_12px_36px_rgba(0,0,0,0.32)] transition-opacity duration-200 hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)]"
+                >
+                  <div className="user-card-holo relative h-full overflow-hidden rounded-[11px] bg-slate-950/95 p-3 text-slate-100">
+                    <span className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-emerald-300/10 via-sky-200/15 to-transparent opacity-100" />
+                    <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1">
+                      <img
+                        src="/nacards-logo.png"
+                        alt="NaCards"
+                        className="h-9 w-auto drop-shadow-[0_8px_20px_rgba(16,185,129,0.45)]"
+                      />
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                        MES CARTES
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </Reveal>
+            )}
+          </div>
+        )}
         <RecentActivitiesSection
           showRecentActivityCard={showRecentActivityCard}
           recentActivities={recentActivities}
@@ -824,15 +865,19 @@ export function GlobalDashboard({
           onSelectUser={onSelectUser}
           nfDecimal={nfDecimal}
         />
-        <NewsSection
-          onOpenNewsArchive={onOpenNewsArchive}
-          newsItems={newsItems}
-          newsLoading={newsLoading}
-          newsError={newsError}
-          latestNews={latestNews}
-          newsImageReadyMap={newsImageReadyMap}
-          formatEventDate={formatEventDate}
-        />
+        {!showChallengeBanner && showCardsShortcut && (
+          <div className="md:hidden">
+            <NewsSection
+              onOpenNewsArchive={onOpenNewsArchive}
+              newsItems={newsItems}
+              newsLoading={newsLoading}
+              newsError={newsError}
+              latestNews={latestNews}
+              newsImageReadyMap={newsImageReadyMap}
+              formatEventDate={formatEventDate}
+            />
+          </div>
+        )}
         <PlayerCardsSection
           cardCountsByUser={cardCountsByUser}
           cardCountsShown={cardCountsShown}

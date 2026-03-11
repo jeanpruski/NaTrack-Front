@@ -305,11 +305,11 @@ export function NotificationsSection({
                   if (!unreadNotifications.length) return;
                   onToggleNotifInfo();
                 }}
-                className="relative z-0 w-full rounded-[28px] border-0 bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-2 text-left shadow-[0_12px_36px_rgba(0,0,0,0.32)] dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                className="relative z-0 w-full rounded-2xl border-0 bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-[5px] text-left opacity-90 shadow-[0_12px_36px_rgba(0,0,0,0.32)] transition-opacity duration-200 hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)]"
                 style={challengeBorderStyle}
               >
                 <div
-                  className="user-card-holo relative overflow-hidden rounded-[22px] p-[12px] text-slate-100"
+                  className="user-card-holo relative overflow-hidden rounded-[11px] p-[12px] text-slate-100"
                   style={challengeInnerStyle}
                 >
                   <span
@@ -401,15 +401,16 @@ export function NotificationsSection({
               </button>
             )}
             <button
+              type="button"
               onClick={onOpenCards}
-              className={`relative w-full overflow-hidden border-0 text-left transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+              className={`relative w-full overflow-hidden border-0 text-left opacity-90 transition-opacity duration-200 hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                 showChallengeBanner
-                  ? "rounded-[28px] bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.32)] dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)] md:h-full"
+                  ? "rounded-2xl bg-gradient-to-br from-emerald-300 via-lime-300 to-sky-400 p-[5px] shadow-[0_12px_36px_rgba(0,0,0,0.32)] dark:shadow-[0_12px_36px_rgba(255,255,255,0.2)] md:h-full"
                   : "rounded-2xl bg-gradient-to-r from-emerald-300/60 to-transparent px-4 py-3 text-slate-900 shadow-sm hover:ring-1 hover:ring-emerald-300/70 dark:text-slate-100"
               }`}
             >
               {showChallengeBanner ? (
-                <div className="user-card-holo relative h-full overflow-hidden rounded-[22px] bg-slate-950/95 p-3 text-slate-100">
+                <div className="user-card-holo relative h-full overflow-hidden rounded-[11px] bg-slate-950/95 p-3 text-slate-100">
                   <span className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-emerald-300/10 via-sky-200/15 to-transparent opacity-100" />
                   <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1">
                     <img
@@ -417,8 +418,8 @@ export function NotificationsSection({
                       alt="NaCards"
                       className="h-9 w-auto drop-shadow-[0_8px_20px_rgba(16,185,129,0.45)]"
                     />
-                    <div className="hidden text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300 md:block">
-                      Mes cartes
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                      MES CARTES
                     </div>
                   </div>
                 </div>
