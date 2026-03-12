@@ -1,5 +1,5 @@
 # NaTrack — Suivi Natation & Running
-**Version : Alpha 0.0.22**
+**Version : Alpha 0.0.24**
 
 NaTrack est une application web pour suivre ses séances de **natation** et de **running**, comparer les performances d’une équipe, et débloquer des cartes en relevant des défis.
 
@@ -20,9 +20,11 @@ NaTrack est une application web pour suivre ses séances de **natation** et de *
 
 ### 1) Explorer le dashboard global
 La page d’accueil affiche :
-- un **classement**
+- un **classement (Podium)**
 - des **stats globales**
 - les **événements à venir**
+
+Quand la période sélectionnée est la **saison en cours** (`range=season:<active>`), le dashboard affiche aussi le bloc **Radar Communauté**.
 
 ### 2) Ouvrir un profil
 - Clique sur une personne pour voir son **dashboard individuel**
@@ -75,6 +77,23 @@ Exemples :
 ### Règles de durée des défis (actuelles)
 - Un défi/rare lancé un jour J est valable **jusqu’à J + 2 jours inclus**.
 - Exemple : départ mercredi 11 → valable mercredi 11, jeudi 12, vendredi 13 (fin vendredi 13 inclus).
+
+### Radar Communauté (saison en cours uniquement)
+
+Le radar suit le **mode actif** (`run`, `swim`, `all`) et affiche (dans cet ordre) :
+1. **Meilleures séances récentes**
+2. **Montée en charge**
+3. **Mauvais élèves**
+4. **Retours après pause** (si détectés)
+
+Règles principales :
+- **Meilleures séances récentes** : records de distance détectés sur les **7 derniers jours** (dans la période affichée).
+- **Montée en charge** : volume des **7 jours glissants** supérieur à la fenêtre précédente de 7 jours.
+- **Mauvais élèves** : pas d’activité depuis **au moins 1 mois** (ou jamais pratiqué le sport concerné).
+
+Comportement d’affichage :
+- Le nom du **user connecté** est souligné dans les listes du radar.
+- Le radar n’est visible que sur la **saison en cours**. Sinon, le Podium prend toute la largeur.
 
 ---
 

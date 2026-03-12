@@ -15,13 +15,18 @@ export function PodiumSection({
   sparklineMap,
   onSelectUser,
   nfDecimal,
+  compactColumnLayout = false,
 }) {
   if (!totals.length) return null;
 
   return (
     <Reveal as="section">
       <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-white/50 dark:ring-slate-700 dark:bg-slate-900/60">
-        <div className="flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
+        <div
+          className={`flex flex-col gap-2 border-b px-4 py-3 dark:border-slate-700 ${
+            compactColumnLayout ? "" : "md:flex-row md:items-center md:justify-between"
+          }`}
+        >
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             <span className="inline-flex items-start gap-2">
               <Trophy size={18} className="mt-[2px] shrink-0" />
@@ -50,7 +55,11 @@ export function PodiumSection({
               </span>
             </span>
           </h2>
-          <div className="flex w-full justify-end gap-2 md:w-auto md:justify-start">
+          <div
+            className={`flex w-full flex-wrap justify-start gap-2 ${
+              compactColumnLayout ? "justify-end" : "justify-end md:w-auto md:justify-end"
+            }`}
+          >
             {hasBotsInRanking && (
               <button
                 type="button"
@@ -72,7 +81,7 @@ export function PodiumSection({
           </div>
         </div>
         <div className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className={`grid gap-3 ${compactColumnLayout ? "grid-cols-1" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
             {podiumShown.map((u, index) => {
               const sparkValues = sparklineMap.get(u.id) || [];
               const points = buildSparklinePoints(sparkValues, 96, 40);

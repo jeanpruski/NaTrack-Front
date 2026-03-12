@@ -110,6 +110,7 @@ export default function App() {
   const [rollingRunSessions, setRollingRunSessions] = useState([]);
   const [cardsPageSessions, setCardsPageSessions] = useState([]);
   const [shoeProgress, setShoeProgress] = useState(null);
+  const [shoeUsageMeters, setShoeUsageMeters] = useState(null);
   const [editModalInitialTab, setEditModalInitialTab] = useState("options");
   const [showVictoryCardPreview, setShowVictoryCardPreview] = useState(false);
   const [victoryInfo, setVictoryInfo] = useState(null);
@@ -875,7 +876,7 @@ export default function App() {
 
   const userSessions = useMemo(() => {
     if (!selectedUser) return [];
-    return sessions.filter((s) => s.user_id === selectedUser.id);
+    return sessions.filter((s) => String(s.user_id) === String(selectedUser.id));
   }, [sessions, selectedUser]);
 
   const globalPeriodSessions = useMemo(() => {
@@ -1324,11 +1325,77 @@ export default function App() {
     const startDate = dayjs(startRaw);
     if (!startDate.isValid()) return null;
     return { name, startDate, targetKm, targetMeters: targetKm * 1000 };
-  }, [selectedUser, user]);
+  }, [selectedUser, user, users]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadShoeUsageMeters = async () => {
+      if (!shoesConfig) {
+        if (alive) setShoeUsageMeters(null);
+        return;
+      }
+
+      const viewedUserId = selectedUser?.id ?? user?.id ?? null;
+      const authUserId = user?.id ?? null;
+      if (viewedUserId === null) {
+        if (alive) setShoeUsageMeters(null);
+        return;
+      }
+
+      const endpoint =
+        isAuth && authUserId !== null && String(viewedUserId) === String(authUserId)
+          ? "/me/sessions"
+          : `/users/${encodeURIComponent(String(viewedUserId))}/sessions/public`;
+      const from = shoesConfig.startDate.format("YYYY-MM-DD");
+      const to = dayjs().format("YYYY-MM-DD");
+      const params = new URLSearchParams({ from, to });
+      try {
+        const data = await apiGet(`${endpoint}?${params.toString()}`, endpoint === "/me/sessions" ? authToken : undefined);
+        if (!alive) return;
+        const usedMeters = (data || []).reduce((acc, s) => {
+          if (normType(s?.type) !== "run") return acc;
+          return acc + (Number(s?.distance) || 0);
+        }, 0);
+        setShoeUsageMeters(usedMeters);
+      } catch {
+        if (!alive) return;
+        setShoeUsageMeters(null);
+      }
+    };
+
+    loadShoeUsageMeters();
+    return () => {
+      alive = false;
+    };
+  }, [shoesConfig, selectedUser?.id, user?.id, isAuth, authToken, sessions.length]);
 
   const shoesLife = useMemo(() => {
     if (!shoesConfig) return null;
-    if (shoeProgress && shoeProgress.shoe_start_date) {
+    if (Number.isFinite(shoeUsageMeters)) {
+      const usedRaw = Number(shoeUsageMeters) || 0;
+      const used = Math.min(usedRaw, shoesConfig.targetMeters);
+      const remaining = Math.max(shoesConfig.targetMeters - usedRaw, 0);
+      const percent = shoesConfig.targetMeters
+        ? Math.min((usedRaw / shoesConfig.targetMeters) * 100, 100)
+        : 0;
+      return {
+        used,
+        remaining,
+        percent,
+        name: shoesConfig.name,
+        targetKm: shoesConfig.targetKm,
+        startDate: shoesConfig.startDate.format("YYYY-MM-DD"),
+      };
+    }
+    const viewedUserId = selectedUser?.id ?? user?.id ?? null;
+    const authUserId = user?.id ?? null;
+    const isOwnDashboard =
+      viewedUserId !== null &&
+      authUserId !== null &&
+      String(viewedUserId) === String(authUserId);
+
+    if (isOwnDashboard && shoeProgress && shoeProgress.shoe_start_date) {
       const usedMeters = Number(shoeProgress.used_m) || 0;
       const used = Math.min(usedMeters, shoesConfig.targetMeters);
       const remaining = Math.max(shoesConfig.targetMeters - usedMeters, 0);
@@ -1363,7 +1430,7 @@ export default function App() {
       targetKm: shoesConfig.targetKm,
       startDate: shoesConfig.startDate.format("YYYY-MM-DD"),
     };
-  }, [userSessions, shoesConfig, shoeProgress]);
+  }, [userSessions, shoesConfig, shoeProgress, shoeUsageMeters, selectedUser?.id, user?.id]);
 
   const shoesLifeByRange = useMemo(() => {
     return shoesLife;
@@ -1903,7 +1970,7 @@ export default function App() {
         />
         <div className="fixed bottom-6 left-4 z-40 text-xs text-slate-500 dark:text-slate-400 sm:bottom-8 sm:left-8">
           <span className="rounded-full bg-slate-200 px-2 py-1 shadow-sm dark:bg-slate-800">
-            Alpha 0.0.22{seasonLabel ? ` · ${seasonLabel}` : ""}
+            Alpha 0.0.23{seasonLabel ? ` · ${seasonLabel}` : ""}
           </span>
         </div>
 
