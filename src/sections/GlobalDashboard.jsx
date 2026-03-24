@@ -150,6 +150,18 @@ export function GlobalDashboard({
     return map;
   }, [allUsers, users]);
   const recentActivities = useMemo(() => {
+    const isStravaImportedSession = (session) => {
+      const source = String(
+        session?.source ?? session?.origin ?? session?.import_source ?? session?.imported_from ?? ""
+      ).toLowerCase();
+      return Boolean(
+        session?.strava_activity_id ||
+        session?.stravaActivityId ||
+        session?.from_strava ||
+        session?.fromStrava ||
+        source === "strava"
+      );
+    };
     const toParis = (value) => {
       if (!value) return null;
       const raw = String(value);
@@ -293,6 +305,7 @@ export function GlobalDashboard({
         userId: s?.user_id ?? null,
         userName,
         dateLabel,
+        isStravaActivity: isStravaImportedSession(s),
         challengeLabel:
           challengeCompleted && challengeName
             ? challengeType === "evenement"

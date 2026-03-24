@@ -187,8 +187,16 @@ export function RecentActivitiesSection({
                               </div>
                             ) : null}
                           </div>
-                          <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
-                            {row.kmLabel}
+                          <span className="inline-flex items-center justify-end gap-1 text-right font-semibold text-slate-900 dark:text-slate-100">
+                            {row.isStravaActivity ? (
+                              <img
+                                src="/strava/strava-icon.svg"
+                                alt="Activité importée depuis Strava"
+                                title="Activité importée depuis Strava"
+                                className="h-3.5 w-3.5 shrink-0"
+                              />
+                            ) : null}
+                            <span>{row.kmLabel}</span>
                           </span>
                           {row.compareBeaten?.length ? (
                             <div className="text-right text-slate-500 dark:text-slate-400">
@@ -285,7 +293,17 @@ export function RecentActivitiesSection({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="font-semibold text-slate-900 dark:text-slate-100">{row.kmLabel}</div>
+                          <div className="inline-flex items-center gap-1 font-semibold text-slate-900 dark:text-slate-100">
+                            {row.isStravaActivity ? (
+                              <img
+                                src="/strava/strava-icon.svg"
+                                alt="Activité importée depuis Strava"
+                                title="Activité importée depuis Strava"
+                                className="h-3.5 w-3.5 shrink-0"
+                              />
+                            ) : null}
+                            <span>{row.kmLabel}</span>
+                          </div>
                           <button
                             type="button"
                             disabled={!canLike || isPending}
