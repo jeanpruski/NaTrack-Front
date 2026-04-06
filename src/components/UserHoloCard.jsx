@@ -248,6 +248,7 @@ export const UserHoloCard = React.memo(function UserHoloCard({
   const showShadow = elevated || cardTilt.active;
   const showContent = !isCardLoading && !showBackOnlySafe;
   const hideBrandMarks = isCardLoading || showBackOnlySafe;
+  const disableFoilGif = compact && isMobile;
   const shadowClass = showShadow
     ? isMobile
       ? "shadow-[0_14px_50px_rgba(0,0,0,0.45)] dark:shadow-[0_14px_50px_rgba(255,255,255,0.28)]"
@@ -326,7 +327,9 @@ export const UserHoloCard = React.memo(function UserHoloCard({
         />
         <div
           ref={holoRef}
-          className="user-card-holo relative min-h-[500px] overflow-hidden rounded-[22px] bg-slate-950/95 p-3 text-white"
+          className={`user-card-holo relative min-h-[500px] overflow-hidden rounded-[22px] bg-slate-950/95 p-3 text-white ${
+            disableFoilGif ? "user-card-holo-no-foil-gif" : ""
+          }`}
           style={{
             backgroundImage: botGradient || undefined,
             backgroundColor: isBot && botColor ? toRgba(botColor, 0.5) : undefined,

@@ -68,6 +68,11 @@ code {
   opacity: var(--spark-opacity, 1);
 }
 
+.user-card-holo.user-card-holo-no-foil-gif::after {
+  background-image: none;
+  opacity: 0;
+}
+
 .user-card-auto-tilt {
   animation: user-card-auto-tilt 6s ease-in-out infinite;
   transform-origin: center;
