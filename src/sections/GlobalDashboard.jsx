@@ -4,13 +4,12 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { Reveal } from "../components/Reveal";
 import { RefreshCw } from "lucide-react";
-import { formatKmFixed, normType } from "../utils/appUtils";
+import { formatKmFixed } from "../utils/appUtils";
 import { buildMonthKeys } from "../utils/globalDashboard";
 import { apiGet } from "../utils/api";
 import { NewsSection } from "./global/NewsSection";
 import { NotificationsSection } from "./global/NotificationsSection";
 import { PodiumSection } from "./global/PodiumSection";
-import { CommunityRadarSection } from "./global/CommunityRadarSection";
 import { DistanceLeaderboardSection } from "./global/DistanceLeaderboardSection";
 import { PlayerCardsSection } from "./global/PlayerCardsSection";
 import { PullToRefreshOverlay } from "./global/PullToRefreshOverlay";
@@ -69,7 +68,6 @@ export function GlobalDashboard({
   const [newsImageReadyMap, setNewsImageReadyMap] = useState({});
   const [showNotifInfo, setShowNotifInfo] = useState(false);
   const [showCardPreview, setShowCardPreview] = useState(false);
-  const [historicalLastRunByUser, setHistoricalLastRunByUser] = useState(new Map());
   const toggleShowMoreRecent = () => onToggleShowMoreRecent?.(!showMoreRecent);
   const toggleShowMorePodium = () => onToggleShowMorePodium?.(!showMorePodium);
   const toggleShowBotsInPodium = () => onToggleShowBotsInPodium?.(!showBotsInPodium);
@@ -92,39 +90,6 @@ export function GlobalDashboard({
     }
     return false;
   }, [range, activeSeasonNumber]);
-  const showCommunityRadar = useMemo(() => {
-    if (activeSeasonNumber === null || activeSeasonNumber === undefined) return false;
-    return String(range || "") === `season:${activeSeasonNumber}`;
-  }, [range, activeSeasonNumber]);
-  useEffect(() => {
-    if (!showCommunityRadar || String(mode || "").toLowerCase() !== "run") {
-      setHistoricalLastRunByUser(new Map());
-      return;
-    }
-    let alive = true;
-    (async () => {
-      try {
-        const data = await apiGet("/sessions?type=run");
-        if (!alive) return;
-        const map = new Map();
-        (data || []).forEach((s) => {
-          if (!s?.user_id || !s?.date) return;
-          const ts = dayjs(s.date).startOf("day").valueOf();
-          if (!Number.isFinite(ts)) return;
-          const key = String(s.user_id);
-          const prev = map.get(key) || 0;
-          if (ts > prev) map.set(key, ts);
-        });
-        setHistoricalLastRunByUser(map);
-      } catch {
-        if (!alive) return;
-        setHistoricalLastRunByUser(new Map());
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [showCommunityRadar, mode]);
   const userNameById = useMemo(() => {
     const map = new Map();
     const pool = (allUsers && allUsers.length ? allUsers : users) || [];
@@ -482,190 +447,6 @@ export function GlobalDashboard({
   const podiumShown = useMemo(() => {
     return totals.slice(0, showMorePodium ? totals.length : 3);
   }, [totals, showMorePodium]);
-  const communityRadarAlerts = useMemo(() => {
-    const now = dayjs().startOf("day");
-    const pool = (allUsers && allUsers.length ? allUsers : users) || [];
-    const realUsers = pool.filter((u) => !u?.is_bot && u?.id !== null && u?.id !== undefined);
-    const byUser = new Map();
-    const modeKey = String(mode || "all").toLowerCase();
-    const activityLabel = modeKey === "run" ? "run" : modeKey === "swim" ? "natation" : "séance";
-    const isMatchingMode = (session) => {
-      if (modeKey === "all") return true;
-      return normType(session?.type) === modeKey;
-    };
-
-    (sessions || []).forEach((s) => {
-      if (!s?.user_id) return;
-      const key = String(s.user_id);
-      if (!byUser.has(key)) byUser.set(key, []);
-      byUser.get(key).push(s);
-    });
-
-    const dayTs = (value) => {
-      const d = dayjs(value).startOf("day");
-      return d.isValid() ? d.valueOf() : null;
-    };
-    const dayDiff = (aTs, bTs) => Math.round((aTs - bTs) / (1000 * 60 * 60 * 24));
-    const monthThresholdTs = now.subtract(1, "month").startOf("day").valueOf();
-    const isAtLeastOneMonthInactive = (ts) => ts !== null && ts <= monthThresholdTs;
-
-    let inactiveCount = 0;
-    let inactiveUsers = [];
-    let newRecordsCount = 0;
-    let newRecordsUsers = [];
-    let comebackCount = 0;
-    let comebackUsers = [];
-    let momentumCount = 0;
-    let momentumUsers = [];
-
-    realUsers.forEach((u) => {
-      const key = String(u.id);
-      const sessionsForUser = byUser.get(key) || [];
-      const sorted = sessionsForUser
-        .map((s) => ({ ...s, ts: dayTs(s.date) }))
-        .filter((s) => Number.isFinite(s.ts))
-        .sort((a, b) => a.ts - b.ts);
-
-      const typedSessions = sorted.filter((s) => isMatchingMode(s) && (Number(s.distance) || 0) > 0);
-      const historicalLastRunTs =
-        modeKey === "run" ? Number(historicalLastRunByUser.get(String(u.id)) || 0) || null : null;
-      const latestTypedTs = typedSessions.length ? typedSessions[typedSessions.length - 1].ts : null;
-      const latestActivityTs = modeKey === "run" ? historicalLastRunTs : latestTypedTs;
-      if (!typedSessions.length) {
-        if (latestActivityTs === null) {
-          inactiveCount += 1;
-          inactiveUsers.push({
-            id: String(u.id),
-            name: u.name || "Utilisateur",
-            meta: modeKey === "run" ? `pas de run enregistré` : `pas de ${activityLabel} enregistré`,
-          });
-        } else {
-          if (isAtLeastOneMonthInactive(latestActivityTs)) {
-            inactiveCount += 1;
-            inactiveUsers.push({
-              id: String(u.id),
-              name: u.name || "Utilisateur",
-              meta:
-                modeKey === "run"
-                  ? `${dayjs(latestActivityTs).locale("fr").format("D MMM YYYY")}`
-                  : `dernier ${activityLabel}: ${dayjs(latestActivityTs).locale("fr").format("D MMM YYYY")}`,
-            });
-          }
-        }
-        return;
-      }
-      const inactivityRefTs = latestActivityTs ?? latestTypedTs;
-      if (isAtLeastOneMonthInactive(inactivityRefTs)) {
-        inactiveCount += 1;
-        const lastLabel = dayjs(inactivityRefTs).locale("fr").format("D MMM YYYY");
-        inactiveUsers.push({
-          id: String(u.id),
-          name: u.name || "Utilisateur",
-          meta: modeKey === "run" ? `${lastLabel}` : `dernier ${activityLabel}: ${lastLabel}`,
-        });
-      }
-      if (typedSessions.length) {
-        const bestDistance = Math.max(...typedSessions.map((s) => Number(s.distance) || 0));
-        const latestBestTs = typedSessions
-          .filter((s) => (Number(s.distance) || 0) === bestDistance)
-          .reduce((max, s) => Math.max(max, s.ts), 0);
-        if (latestBestTs && dayDiff(now.valueOf(), latestBestTs) <= 7) {
-          newRecordsCount += 1;
-          newRecordsUsers.push({
-            id: String(u.id),
-            name: u.name || "Utilisateur",
-            meta: `${formatKmFixed(bestDistance / 1000)} km`,
-          });
-        }
-      }
-
-      const uniqueDays = Array.from(new Set(typedSessions.map((s) => s.ts))).sort((a, b) => a - b);
-      if (uniqueDays.length >= 2) {
-        let maxGap = 0;
-        for (let i = 1; i < uniqueDays.length; i += 1) {
-          const gap = dayDiff(uniqueDays[i], uniqueDays[i - 1]);
-          if (gap > maxGap) maxGap = gap;
-        }
-        if (maxGap >= 14 && dayDiff(now.valueOf(), uniqueDays[uniqueDays.length - 1]) <= 7) {
-          comebackCount += 1;
-          comebackUsers.push(u.name || "Utilisateur");
-        }
-      }
-
-      const last7StartTs = now.subtract(6, "day").valueOf();
-      const prev7StartTs = now.subtract(13, "day").valueOf();
-      const prev7EndTs = now.subtract(7, "day").valueOf();
-      const currentPeriod = typedSessions
-        .filter((s) => s.ts >= last7StartTs && s.ts <= now.valueOf())
-        .reduce((acc, s) => acc + (Number(s.distance) || 0), 0);
-      const previousPeriod = typedSessions
-        .filter((s) => s.ts >= prev7StartTs && s.ts <= prev7EndTs)
-        .reduce((acc, s) => acc + (Number(s.distance) || 0), 0);
-      if (currentPeriod > previousPeriod) {
-        momentumCount += 1;
-        momentumUsers.push({
-          id: String(u.id),
-          name: u.name || "Utilisateur",
-          meta: `${formatKmFixed(currentPeriod / 1000)} km vs ${formatKmFixed(previousPeriod / 1000)} km`,
-        });
-      }
-    });
-
-    const formatUsersItems = (list) => {
-      if (!list.length) return [];
-      return [...list].sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || ""), "fr"));
-    };
-    const alerts = [];
-    if (newRecordsCount > 0) {
-      alerts.push({
-        id: "records",
-        type: "records",
-        tone: "success",
-        count: newRecordsCount,
-        title: "Meilleures séances récentes",
-        detail: `${newRecordsCount} record${newRecordsCount > 1 ? "s" : ""} de distance (${activityLabel}) sur la période affichée (détecté${newRecordsCount > 1 ? "s" : ""} sur 7 jours)`,
-        usersItems: formatUsersItems(newRecordsUsers),
-      });
-    }
-    if (momentumCount > 0) {
-      alerts.push({
-        id: "momentum",
-        type: "momentum",
-        tone: "warning",
-        count: momentumCount,
-        title: "Montée en charge",
-        detail: `${momentumCount} user${momentumCount > 1 ? "s" : ""} en hausse (${activityLabel}) vs semaine précédente (7 jours glissants)`,
-        usersItems: formatUsersItems(momentumUsers),
-      });
-    }
-    alerts.push({
-      id: "inactive",
-      type: "inactive",
-      tone: inactiveCount > 0 ? "danger" : "info",
-      count: inactiveCount,
-      title: `Mauvais élèves (${activityLabel})`,
-      detail:
-        inactiveCount > 0
-          ? `${inactiveCount} user${inactiveCount > 1 ? "s" : ""} sans ${activityLabel} depuis au moins 1 mois (ou jamais pratiqué)`
-          : `Aucun mauvais élève sur ${activityLabel} (tout le monde a pratiqué depuis moins de 30 jours)`,
-      usersItems: inactiveCount > 0 ? formatUsersItems(inactiveUsers) : [],
-      usersLabel: inactiveCount > 0 ? "" : "Aucun",
-    });
-    if (comebackCount > 0) {
-      alerts.push({
-        id: "comeback",
-        type: "comeback",
-        tone: "info",
-        count: comebackCount,
-        title: "Retours après pause",
-        detail: `${comebackCount} reprise${comebackCount > 1 ? "s" : ""} après 14+ jours d'arrêt`,
-        usersItems: formatUsersItems(
-          comebackUsers.map((name) => ({ id: "", name: name || "Utilisateur", meta: "" }))
-        ),
-      });
-    }
-    return alerts;
-  }, [sessions, allUsers, users, mode, historicalLastRunByUser]);
   const cardCountsByUser = useMemo(() => {
     const pool = (allUsers && allUsers.length ? allUsers : users) || [];
     const currentUserKey =
@@ -1084,15 +865,7 @@ export function GlobalDashboard({
           onToggleSessionLike={onToggleSessionLike}
           onSelectUser={onSelectUser}
         />
-        <div
-          className={`grid gap-4 ${
-            showCommunityRadar
-              ? showMorePodium
-                ? "md:grid-cols-1"
-                : "md:grid-cols-2 md:items-start"
-              : "grid-cols-1"
-          }`}
-        >
+        <div className="grid gap-4">
           <PodiumSection
             totals={totals}
             subtitle={subtitle}
@@ -1105,14 +878,7 @@ export function GlobalDashboard({
             sparklineMap={sparklineMap}
             onSelectUser={onSelectUser}
             nfDecimal={nfDecimal}
-            compactColumnLayout={showCommunityRadar && !showMorePodium}
           />
-          {showCommunityRadar && (
-            <CommunityRadarSection
-              alerts={communityRadarAlerts}
-              currentUserId={currentUserId}
-            />
-          )}
         </div>
         {!showChallengeBanner && showCardsShortcut && (
           <div className="md:hidden">
